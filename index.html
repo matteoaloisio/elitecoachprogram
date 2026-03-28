@@ -979,14 +979,71 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
 <!-- ONBOARDING -->
 <div class="pg" id="pg-onboard">
 <nav><a class="nav-logo"><em>EliteCoach</em>Program.fit</a><div class="nav-right"><span id="onb-step-lbl" style="color:var(--sub);font-size:.85rem"></span></div></nav>
-<div style="max-width:600px;margin:0 auto;padding:40px 20px">
-  <div class="onboard-steps" id="onb-steps"></div>
-  <div id="onb-content"></div>
-  <div style="display:flex;gap:10px;margin-top:24px;justify-content:space-between">
-    <button class="btn btn-ghost" id="onb-prev" onclick="onbPrev()">← Indietro</button>
-      <button class="btn btn-ghost btn-sm" onclick="skipOnboarding()" style="color:var(--muted);font-size:12px">Salta →</button>
-    <button class="btn btn-primary" id="onb-next" onclick="onbNext()">Avanti →</button>
+<div style="max-width:640px;margin:0 auto;padding:40px 20px">
+
+  <div id="onb-choice">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:2.5rem;margin-bottom:8px">&#127919;</div>
+      <h2 style="font-family:var(--font2);font-size:1.5rem;margin-bottom:6px">Crea il tuo programma</h2>
+      <p style="color:var(--sub);font-size:.9rem">Scegli come vuoi configurarlo</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+
+      <div class="card" onclick="startQuickOnb()"
+        style="cursor:pointer;border:2px solid transparent;transition:.2s;text-align:center;padding:22px 14px"
+        onmouseenter="this.style.borderColor='var(--teal)';this.style.transform='translateY(-3px)'"
+        onmouseleave="this.style.borderColor='transparent';this.style.transform='none'">
+        <div style="font-size:2rem;margin-bottom:6px">&#9889;</div>
+        <div style="font-family:var(--font2);font-weight:700;color:var(--teal);margin-bottom:4px">Rapido</div>
+        <div style="font-size:.78rem;color:var(--sub);margin-bottom:10px">6 domande &bull; 1 minuto</div>
+        <div style="font-size:.75rem;color:var(--sub);text-align:left;line-height:1.8;margin-bottom:12px">
+          &#10003; Obiettivo e livello<br>
+          &#10003; Frequenza settimanale<br>
+          &#10003; Eta, sesso, peso<br>
+          &#10003; Attrezzatura<br>
+          &#10003; Limitazioni fisiche
+        </div>
+        <button class="btn" style="width:100%;border-radius:50px;background:rgba(15,214,194,.12);border:1px solid rgba(15,214,194,.3);color:var(--teal);font-weight:600;font-size:.85rem">
+          Inizia rapido &#9889;
+        </button>
+      </div>
+
+      <div class="card" onclick="startFullOnb()"
+        style="cursor:pointer;border:2px solid transparent;transition:.2s;text-align:center;padding:22px 14px"
+        onmouseenter="this.style.borderColor='var(--accent)';this.style.transform='translateY(-3px)'"
+        onmouseleave="this.style.borderColor='transparent';this.style.transform='none'">
+        <div style="font-size:2rem;margin-bottom:6px">&#129504;</div>
+        <div style="font-family:var(--font2);font-weight:700;color:var(--accent);margin-bottom:4px">Completo</div>
+        <div style="font-size:.78rem;color:var(--sub);margin-bottom:10px">7 sezioni &bull; Ultra-personalizzato</div>
+        <div style="font-size:.75rem;color:var(--sub);text-align:left;line-height:1.8;margin-bottom:12px">
+          &#10003; Tutto il questionario rapido<br>
+          &#10003; Massimali di forza<br>
+          &#10003; Anamnesi medica<br>
+          &#10003; Stile di vita e sonno<br>
+          &#10003; Obiettivi estetici e AI
+        </div>
+        <button class="btn btn-primary" style="width:100%;border-radius:50px;font-weight:600;font-size:.85rem">
+          Questionario completo &#129504;
+        </button>
+      </div>
+
+    </div>
+    <p style="text-align:center;font-size:.76rem;color:var(--muted)">&#128161; Puoi aggiornare i dati dalla dashboard in qualsiasi momento</p>
   </div>
+
+  <div id="onb-wizard" style="display:none">
+    <div class="onboard-steps" id="onb-steps"></div>
+    <div id="onb-content"></div>
+  </div>
+
+  <div id="onb-buttons" style="display:none;margin-top:22px">
+    <div style="display:flex;gap:10px;justify-content:space-between">
+      <button class="btn btn-ghost" id="onb-prev" onclick="onbPrev()">&#8592; Indietro</button>
+      <button class="btn btn-ghost btn-sm" onclick="skipOnboarding()" style="color:var(--muted);font-size:12px">Salta &#8594;</button>
+      <button class="btn btn-primary" id="onb-next" onclick="onbNext()">Avanti &#8594;</button>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -4335,6 +4392,51 @@ function renderLibGrid(){
 
 function loadMoreLib(){ LIB_PAGE++; renderLibGrid(); }
 
+// ── QUESTIONARIO RAPIDO ─────────────────────────────────────
+const QUICK_STEPS = [
+  { id:'q1', title:'Obiettivo e Livello', fields:[
+    {type:'select',label:'Obiettivo principale *',key:'goal',required:true,
+     options:['Dimagrimento','Ipertrofia','Forza','Atletismo','Benessere generale',
+              'Powerlifting','Ricomposizione corporea','Glutei e Gambe',
+              'CrossFit e WOD','HIIT e Fat burning','Calistenia','Fitness femminile']},
+    {type:'select',label:'Livello *',key:'level',required:true,
+     options:['Principiante (0-1 anno)','Intermedio (1-3 anni)','Avanzato (3+ anni)','Atleta agonista']},
+    {type:'select',label:'Sessioni a settimana *',key:'freq',required:true,
+     options:['2 giorni','3 giorni','4 giorni','5 giorni','6 giorni','Ogni giorno']},
+  ]},
+  { id:'q2', title:'Dati Fisici', fields:[
+    {type:'number',label:'Eta *',key:'age',required:true,placeholder:'28'},
+    {type:'select',label:'Sesso *',key:'sex',required:true,
+     options:['Maschile','Femminile','Altro']},
+    {type:'number',label:'Peso (kg) *',key:'weight',required:true,placeholder:'75'},
+    {type:'number',label:'Altezza (cm)',key:'height',placeholder:'175'},
+  ]},
+  { id:'q3', title:'Attrezzatura e Limitazioni', fields:[
+    {type:'checkbox-group',label:'Dove ti alleni *',key:'gym',required:true,
+     options:['Palestra completa','Casa con manubri','Palestra con bilanciere',
+              'Box CrossFit','Solo corpo libero','Calisthenics park']},
+    {type:'checkbox-group',label:'Infortuni o limitazioni',key:'injuries',
+     options:['Nessuna limitazione','Schiena bassa (lombalgia)','Ginocchio',
+              'Spalla (cuffia rotatori)','Anca','Polso o gomito']},
+  ]},
+];
+let onbMode = 'full';
+function getCurrentSteps(){ return onbMode==='quick'?QUICK_STEPS:ONBOARD_STEPS; }
+function startQuickOnb(){
+  onbMode='quick'; onbStep=0; onbData={};
+  document.getElementById('onb-choice').style.display='none';
+  document.getElementById('onb-wizard').style.display='';
+  document.getElementById('onb-buttons').style.display='';
+  renderOnbStep();
+}
+function startFullOnb(){
+  onbMode='full'; onbStep=0; onbData={};
+  document.getElementById('onb-choice').style.display='none';
+  document.getElementById('onb-wizard').style.display='';
+  document.getElementById('onb-buttons').style.display='';
+  renderOnbStep();
+}
+
 // ─── ONBOARDING ───────────────────────────────────────────
 const ONBOARD_STEPS = [
   { id:'obj', title:'Obiettivo & Livello', fields:[
@@ -4394,12 +4496,14 @@ const ONBOARD_STEPS = [
   ]},
 ];
 
-let onbData = {};
-let onbStep = 0;
-
 function initOnboarding(){
-  onbData = {}; onbStep = 0;
-  renderOnbStep();
+  onbData={}; onbStep=0; onbMode='full';
+  const ch=document.getElementById('onb-choice');
+  const wz=document.getElementById('onb-wizard');
+  const bt=document.getElementById('onb-buttons');
+  if(ch) ch.style.display='';
+  if(wz) wz.style.display='none';
+  if(bt) bt.style.display='none';
 }
 
 function renderOnbStep(){
@@ -4410,12 +4514,13 @@ function renderOnbStep(){
   const next = document.getElementById('onb-next');
   if(!steps||!content) return;
   // Progress indicators
-  steps.innerHTML = ONBOARD_STEPS.map((_,i)=>`<div class="onboard-step ${i<onbStep?'done':i===onbStep?'act':''}"></div>`).join('');
-  if(lbl) lbl.textContent = `Passo ${onbStep+1} di ${ONBOARD_STEPS.length}`;
+  const _steps = getCurrentSteps();
+  steps.innerHTML = _steps.map((_,i)=>`<div class="onboard-step ${i<onbStep?'done':i===onbStep?'act':''}"></div>`).join('');
+  if(lbl) lbl.textContent = `Passo ${onbStep+1} di ${_steps.length}`;
   if(prev) prev.style.display = onbStep>0?'':'none';
-  const isLast = onbStep === ONBOARD_STEPS.length-1;
+  const isLast = onbStep === getCurrentSteps().length-1;
   if(next){ next.textContent = isLast ? 'Genera il mio programma AI 🚀' : 'Avanti →'; }
-  const step = ONBOARD_STEPS[onbStep];
+  const step = getCurrentSteps()[onbStep];
   content.innerHTML = `<div class="card"><h3 style="font-family:var(--font2);margin-bottom:20px">${step.title}</h3>
     <div style="display:flex;flex-direction:column;gap:16px">
       ${step.fields.map(f=>renderOnbField(f)).join('')}
@@ -4454,7 +4559,7 @@ function renderOnbField(f){
 }
 
 function onbCollect(){
-  const step = ONBOARD_STEPS[onbStep];
+  const step = getCurrentSteps()[onbStep];
   step.fields.forEach(f=>{
     const el = document.getElementById('onb-'+f.key);
     if(f.type==='checkbox-group'){
@@ -4466,7 +4571,22 @@ function onbCollect(){
 
 function onbNext(){
   onbCollect();
-  if(onbStep < ONBOARD_STEPS.length-1){ onbStep++; renderOnbStep(); }
+  const _curStep = getCurrentSteps()[onbStep];
+  const _missing = (_curStep.fields||[]).filter(f=>{
+    if(!f.required) return false;
+    const v = onbData[f.key];
+    return !v || v==='' || (Array.isArray(v) && v.length===0);
+  });
+  if(_missing.length>0){
+    toast('Compila i campi obbligatori (*) per continuare','error');
+    _missing.forEach(f=>{
+      const el=document.getElementById('onb-'+f.key);
+      if(el){ el.style.border='2px solid var(--red)';
+        setTimeout(()=>{el.style.border='';},3000); }
+    });
+    return;
+  }
+  if(onbStep < getCurrentSteps().length-1){ onbStep++; renderOnbStep(); }
   else {
     // Save profile and generate
     if(!SESSION) return;
