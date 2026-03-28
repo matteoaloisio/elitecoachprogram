@@ -5343,6 +5343,7 @@ function renderDashSec(sec){
   if(sec==='home') renderDashHome();
   else if(sec==='schede') renderDashSchede();
   else if(sec==='storico') renderDashStorico();
+  else if(sec==='calendario') renderDashCalendario();
   else if(sec==='dieta') renderDashDieta();
   else if(sec==='sfide') renderDashSfide();
   else if(sec==='prenota') renderDashPrenota();
@@ -5868,14 +5869,26 @@ let calMonth = new Date().getMonth();
 function renderDashCalendario(){
   const el = document.getElementById('ds-calendario');
   if(!el) return;
-  el.innerHTML = '<div style="max-width:700px;margin:0 auto"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><h2 style="font-family:var(--font2)">&#128198; Calendario Allenamenti</h2></div><div id="cal-container"><div style="text-align:center;padding:40px;color:var(--sub)">Caricamento...</div></div></div>';
-  setTimeout(function(){ buildCalendar(calYear, calMonth); }, 50);
+  // Svuota e crea struttura
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.maxWidth = '700px';
+  wrap.style.margin = '0 auto';
+  const heading = document.createElement('div');
+  heading.innerHTML = '<h2 style="font-family:var(--font2);margin-bottom:20px">&#128198; Calendario Allenamenti</h2>';
+  const calDiv = document.createElement('div');
+  calDiv.id = 'cal-container';
+  wrap.appendChild(heading);
+  wrap.appendChild(calDiv);
+  el.appendChild(wrap);
+  // Costruisci calendario
+  buildCalendar(calYear, calMonth);
 }
 
 function buildCalendar(year, month){
   const log     = SESSION?.log || [];
   const el = document.getElementById('cal-container');
-  if(!el){ setTimeout(function(){ buildCalendar(year,month); },100); return; }
+  if(!el) return;
 
   const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                       'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -6092,8 +6105,9 @@ function renderDashStorico(){
       ${log.slice(0,20).map(l=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border2)">
         <div style="font-size:1.5rem">💪</div>
         <div style="flex:1">
-          <div style="font-weight:600;font-size:.9rem">${l.day||'Sessione'}</div>
-          <div style="font-size:.78rem;color:var(--sub)">${l.date?new Date(l.date).toLocaleDateString('it-IT'):''} · ${l.duration||0} min · ${l.exercises||0} esercizi</div>
+          <div style="font-weight:600;font-size:.9rem">${l.dayName||('Giorno '+l.day)||'Sessione'}</div>
+          <div style="font-size:.78rem;color:var(--sub)">${l.date?new Date(l.date).toLocaleDateString('it-IT'):''} · ${Array.isArray(l.exercises)?l.exercises.length:(l.exercises||0)} esercizi · ${l.volume>0?Math.round(l.volume)+'kg vol':'—'}</div>
+          <div style="font-size:.74rem;color:var(--sub);margin-top:2px">${Array.isArray(l.exercises)&&l.exercises.length?l.exercises.slice(0,3).map(function(e){return e.name||'';}).filter(Boolean).join(', ')+(l.exercises.length>3?' ...':''):''}</div>
         </div>
         <span class="badge badge-green">+30 pt</span>
       </div>`).join('')}
