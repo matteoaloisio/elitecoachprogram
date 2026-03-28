@@ -2447,33 +2447,80 @@ function showAuthError(msg,reg=false){
   if(el){ el.textContent=msg; el.style.display='block'; }
 }
 
-function doRegister(){
-  const name=document.getElementById('reg-name').value.trim();
-  const surname=document.getElementById('reg-surname').value.trim();
-  const email=document.getElementById('reg-email').value.trim().toLowerCase();
-  const pass=document.getElementById('reg-pass').value;
-  if(!name||!surname||!email||!pass){ showAuthError(t('toast_fill'),true); return; }
+async function doRegister(){
+  const name    = (document.getElementById('reg-name')?.value||'').trim();
+  const surname = (document.getElementById('reg-surname')?.value||'').trim();
+  const email   = (document.getElementById('reg-email')?.value||'').trim().toLowerCase();
+  const pass    = (document.getElementById('reg-pass')?.value||'');
+  if(!name||!email||!pass){ showAuthError(t('toast_fill'),true); return; }
   if(pass.length<6){ showAuthError('Password min 6 caratteri',true); return; }
-  if(getUserByEmail(email)){ showAuthError('Email già registrata',true); return; }
-  const user = { name, surname, email, pass, pro:false, points:0, streak:0, lastLogin:null,
-    joinDate:new Date().toISOString(), profile:{}, program:null, log:[], weight:[], measures:{},
-    photos:[], meals:[], bookings:[], prAlerts:[] };
-  addUser(user);
-  saveSession(user);
-  toast('Benvenuto '+name+'! 🎉','success');
-  // Show quick onboarding for new users
-  showPage('pg-auth');
-  setTimeout(()=>showQuickOnboarding(), 400);
+
+  const sb = getSupabase();
+  if(!sb){
+    // Fallback localStorage
+    if(getUserByEmail(email)){ showAuthError('Email gia registrata',true); return; }
+    const user={name:name+' '+surname,surname,email,pass,pro:false,points:0,streak:0,
+      lastLogin:null,joinDate:new Date().toISOString(),profile:{},program:null,
+      log:[],weight:[],measures:{},photos:[],meals:[],bookings:[],prAlerts:[]};
+    addUser(user); saveSession(user); SESSION=user;
+    toast('Benvenuto '+name+'!','success');
+    showPage('pg-onboard'); return;
+  }
+
+  // ── Registrazione REALE Supabase ─────────────────────
+  const errEl = document.getElementById('auth-err2');
+  const btn   = document.querySelector('[onclick*="doRegisterWithLegal"]');
+  if(btn){ btn.disabled=true; btn.textContent='Creazione account...'; }
+
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email, password: pass,
+      options:{ data:{ name: name+' '+surname } }
+    });
+
+    if(error){
+      if(errEl){ errEl.textContent='Errore: '+error.message; errEl.style.display=''; }
+      return;
+    }
+
+    // Salva profilo nel DB
+    await sb.from('profiles').insert({
+      id:    data.user.id,
+      email: data.user.email,
+      name:  name+' '+surname,
+      plan:  'free',
+      role:  'user',
+      profile: {},
+      program: null
+    });
+
+    // Cache locale
+    const user = { id:data.user.id, name:name+' '+surname, surname, email,
+      pro:false, points:0, streak:0, lastLogin:null,
+      joinDate:new Date().toISOString(), profile:{}, program:null,
+      log:[], weight:[], measures:{}, photos:[], meals:[], bookings:[], prAlerts:[] };
+    addUser(user); saveSession(user); SESSION=user;
+
+    toast('Benvenuto '+name+'! Account creato 🎉','success');
+    showPage('pg-onboard');
+
+  } catch(e) {
+    console.error('doRegister error:', e);
+    if(errEl){ errEl.textContent='Errore di connessione. Riprova.'; errEl.style.display=''; }
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='Crea account gratis →'; }
+  }
 }
 
+let _loginInProgress = false;
 async function doLogin(){
+  if(_loginInProgress) return;
   const email = document.getElementById('log-email')?.value.trim().toLowerCase()||'';
   const pass  = document.getElementById('log-pass')?.value||'';
   if(!email||!pass){ showAuthError(t('toast_fill')); return; }
 
   const sb = getSupabase();
   if(!sb){
-    // Fallback localStorage
     const user=getUserByEmail(email);
     if(!user){ showAuthError('Nessun account trovato con questa email'); return; }
     if(user.pass!==pass){ showAuthError('Password non corretta'); return; }
@@ -2484,37 +2531,46 @@ async function doLogin(){
     return;
   }
 
-  // ── Login REALE su Supabase ───────────────────────────
-  const btn = document.getElementById('log-btn') || document.querySelector('[onclick*=doLogin]');
+  _loginInProgress = true;
+  const btn = document.querySelector('[onclick*="doLogin"]');
   if(btn){ btn.disabled=true; btn.textContent='Accesso...'; }
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
-  if(btn){ btn.disabled=false; btn.textContent='Accedi'; }
+    if(error){
+      showAuthError('Credenziali errate. Controlla email e password.');
+      return;
+    }
 
-  if(error){
-    showAuthError('Credenziali errate. Controlla email e password.'); return;
+    // Carica profilo dal database
+    const { data: profile } = await sb
+      .from('profiles').select('*').eq('id', data.user.id).single();
+
+    if(profile){
+      SESSION = profile;
+      saveSession(SESSION);
+    } else {
+      // Profilo non trovato — crea al volo
+      const newProfile = { id:data.user.id, email:data.user.email,
+        name: data.user.user_metadata?.name||email, plan:'free', role:'user',
+        profile:{}, program:null };
+      const { error: insErr } = await sb.from('profiles').insert(newProfile);
+      if(insErr) console.error('Profile insert error:', insErr);
+      SESSION = newProfile;
+      saveSession(SESSION);
+    }
+
+    if(!SESSION.profile||!SESSION.profile.goal) showPage('pg-onboard');
+    else showPage('pg-dash');
+
+  } catch(e) {
+    console.error('doLogin error:', e);
+    showAuthError('Errore di connessione. Riprova.');
+  } finally {
+    _loginInProgress = false;
+    if(btn){ btn.disabled=false; btn.textContent='Accedi'; }
   }
-
-  // Carica profilo dal database
-  const { data: profile } = await sb
-    .from('profiles').select('*').eq('id', data.user.id).single();
-
-  if(profile){
-    SESSION = profile;
-    saveSession(SESSION);
-  } else {
-    // Profilo non trovato — crea al volo
-    const newProfile = { id:data.user.id, email:data.user.email,
-      name: data.user.user_metadata?.name||email, plan:'free', role:'user',
-      profile:{}, program:null };
-    await sb.from('profiles').insert(newProfile);
-    SESSION = newProfile;
-    saveSession(SESSION);
-  }
-
-  if(!SESSION.profile||!SESSION.profile.goal) showPage('pg-onboard');
-  else showPage('pg-dash');
 }
 
 async function doLogout(){
