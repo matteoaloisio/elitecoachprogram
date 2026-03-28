@@ -1087,6 +1087,7 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-sidebar-item act" onclick="showDashSection('home')" data-sec="home"><span class="ico">🏠</span>Home</div>
     <div class="dash-sidebar-item" onclick="showDashSection('schede')" data-sec="schede"><span class="ico">💪</span>Schede</div>
     <div class="dash-sidebar-item" onclick="showDashSection('storico')" data-sec="storico"><span class="ico">🕐</span>Storico</div>
+    <div class="dash-sidebar-item" onclick="showDashSection('calendario')" data-sec="calendario"><span class="ico">&#128198;</span>Calendario</div>
     <div class="dash-sidebar-item" onclick="showDashSection('dieta')" data-sec="dieta"><span class="ico">🥗</span>Dieta</div>
     <div class="dash-sidebar-item" onclick="showDashSection('sfide')" data-sec="sfide"><span class="ico">⭐</span>Sfide</div>
     <div class="dash-sidebar-item" onclick="showDashSection('prenota')" data-sec="prenota"><span class="ico">📅</span>Prenota</div>
@@ -1111,6 +1112,8 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-section" id="ds-schede"></div>
     <!-- STORICO -->
     <div class="dash-section" id="ds-storico"></div>
+    <!-- CALENDARIO -->
+    <div class="dash-section" id="ds-calendario"></div>
     <!-- DIETA -->
     <div class="dash-section" id="ds-dieta"></div>
     <!-- SFIDE -->
@@ -5655,7 +5658,21 @@ function renderDay(idx){
       <span style="font-size:1.1rem;flex-shrink:0">🥗</span>
       <div><div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Nutrizione</div>
       <p style="font-size:12px;color:var(--sub)">${prog.nutrition?.tip||prog.nutrition_tip}</p></div>
-    </div>`:''}`;
+    </div>`:''}
+
+    <!-- BOTTONE COMPLETA ALLENAMENTO -->
+    <div style="margin-top:28px;padding:20px;background:linear-gradient(135deg,rgba(45,212,160,.06),rgba(91,94,244,.06));border:1.5px solid rgba(45,212,160,.2);border-radius:16px;text-align:center">
+      <p style="font-size:.82rem;color:var(--sub);margin-bottom:14px">Hai completato tutti gli esercizi?</p>
+      <button
+        id="btn-complete-workout"
+        onclick="completeWorkout(${currentDayIdx})"
+        class="btn"
+        style="background:linear-gradient(135deg,var(--green),var(--teal));color:#0d0d12;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:50px;border:none;letter-spacing:.3px;box-shadow:0 4px 20px rgba(45,212,160,.3);transition:.2s"
+        onmouseenter="this.style.transform='scale(1.04)';this.style.boxShadow='0 6px 28px rgba(45,212,160,.45)'"
+        onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(45,212,160,.3)'">
+        ✅ Allenamento Completato!
+      </button>
+    </div>`;
 }
 
 function renderExerciseCard(ex, ei, dayKey){
@@ -5842,6 +5859,215 @@ function finishSession(){
 }
 
 // ─── STORICO ──────────────────────────────────────────────
+
+
+// ── CALENDARIO ALLENAMENTI ────────────────────────────────────
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function renderDashCalendario(){
+  const el = document.getElementById('ds-calendario');
+  if(!el) return;
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><h2 style="font-family:var(--font2)">&#128198; Calendario Allenamenti</h2></div><div id="cal-container"></div>';
+  buildCalendar(calYear, calMonth);
+}
+
+function buildCalendar(year, month){
+  const log     = SESSION?.log || [];
+  const el      = document.getElementById('cal-container');
+  if(!el) return;
+
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                      'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const dayNames   = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  // Mappa date → entries
+  const trainingDays = {};
+  log.forEach(function(entry){
+    const d = new Date(entry.date);
+    if(d.getFullYear()===year && d.getMonth()===month){
+      const key = d.getDate();
+      if(!trainingDays[key]) trainingDays[key] = [];
+      trainingDays[key].push(entry);
+    }
+  });
+
+  const firstDay    = new Date(year, month, 1);
+  let startDow      = firstDay.getDay() - 1;
+  if(startDow < 0) startDow = 6;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today       = new Date();
+  const isCurMonth  = today.getFullYear()===year && today.getMonth()===month;
+
+  const totalSessions = Object.keys(trainingDays).length;
+  const totalVolume   = log.filter(function(e){
+    const d=new Date(e.date); return d.getFullYear()===year && d.getMonth()===month;
+  }).reduce(function(tot,e){ return tot+(e.volume||0); }, 0);
+
+  // Header
+  let out = '<div class="card" style="margin-bottom:16px">';
+  out += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">';
+  out += '<button class="btn btn-ghost btn-sm" onclick="calMonth--;if(calMonth<0){calMonth=11;calYear--;}buildCalendar(calYear,calMonth)" style="border-radius:50px;padding:8px 16px">&#8592; Prec</button>';
+  out += '<h3 style="font-family:var(--font2);font-size:1.1rem">' + monthNames[month] + ' ' + year + '</h3>';
+  out += '<button class="btn btn-ghost btn-sm" onclick="calMonth++;if(calMonth>11){calMonth=0;calYear++;}buildCalendar(calYear,calMonth)" style="border-radius:50px;padding:8px 16px">Succ &#8594;</button>';
+  out += '</div>';
+
+  // Stats
+  out += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+  out += '<div style="text-align:center;padding:12px;background:rgba(91,94,244,.08);border-radius:10px"><div style="font-size:1.5rem;font-weight:800;color:var(--accent)">' + totalSessions + '</div><div style="font-size:.75rem;color:var(--sub)">Sessioni</div></div>';
+  out += '<div style="text-align:center;padding:12px;background:rgba(15,214,194,.08);border-radius:10px"><div style="font-size:1.5rem;font-weight:800;color:var(--teal)">' + (SESSION&&SESSION.streak||0) + ' &#128293;</div><div style="font-size:.75rem;color:var(--sub)">Streak</div></div>';
+  out += '<div style="text-align:center;padding:12px;background:rgba(245,200,66,.08);border-radius:10px"><div style="font-size:1.5rem;font-weight:800;color:var(--gold)">' + (totalVolume>0?Math.round(totalVolume/1000)+'t':'-') + '</div><div style="font-size:.75rem;color:var(--sub)">Volume</div></div>';
+  out += '</div>';
+
+  // Intestazione giorni
+  out += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">';
+  dayNames.forEach(function(d){ out += '<div style="text-align:center;font-size:.72rem;font-weight:700;color:var(--sub);padding:4px">' + d + '</div>'; });
+  out += '</div>';
+
+  // Griglia
+  out += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+  for(var s=0; s<startDow; s++) out += '<div></div>';
+  for(var day=1; day<=daysInMonth; day++){
+    const isToday  = isCurMonth && today.getDate()===day;
+    const entries  = trainingDays[day] || [];
+    const hasLog   = entries.length > 0;
+    const focus    = hasLog ? (entries[0].focus||entries[0].dayName||'') : '';
+    const focusS   = focus.length>10 ? focus.substring(0,10)+'…' : focus;
+    let bg, numColor;
+    if(isToday && hasLog)  { bg='background:rgba(45,212,160,.2);border:2px solid var(--teal)';   numColor='var(--teal)'; }
+    else if(isToday)       { bg='background:rgba(91,94,244,.12);border:2px solid var(--accent)'; numColor='var(--accent)'; }
+    else if(hasLog)        { bg='background:rgba(45,212,160,.10);border:1.5px solid rgba(45,212,160,.3)'; numColor='var(--teal)'; }
+    else                   { bg='background:var(--bg2);border:1.5px solid var(--border)';        numColor='var(--sub)'; }
+
+    out += '<div style="border-radius:10px;'+bg+';padding:6px 4px;min-height:54px;cursor:'+(hasLog?'pointer':'default')+';display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.15s"';
+    if(hasLog) out += ' onclick="showCalDay('+day+','+month+','+year+')" onmouseenter="this.style.transform=\'scale(1.06)\'" onmouseleave="this.style.transform=\'none\'"';
+    out += '>';
+    out += '<span style="font-size:.82rem;font-weight:'+(isToday?'800':'600')+';color:'+numColor+'">'+day+'</span>';
+    if(hasLog){
+      out += '<span style="font-size:.55rem;color:var(--teal);text-align:center;line-height:1.2;margin-top:2px">'+focusS+'</span>';
+      out += '<span style="font-size:.6rem;margin-top:1px">&#128170;</span>';
+    }
+    out += '</div>';
+  }
+  out += '</div></div>';
+
+  // Legenda
+  out += '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--sub);padding:4px 4px 0">';
+  out += '<span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:4px;background:rgba(45,212,160,.3);display:inline-block"></span>Allenamento completato</span>';
+  out += '<span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:4px;border:2px solid var(--accent);display:inline-block"></span>Oggi</span>';
+  out += '</div>';
+
+  el.innerHTML = out;
+}
+
+function showCalDay(day, month, year){
+  const log = SESSION?.log || [];
+  const entries = log.filter(function(e){
+    const d = new Date(e.date);
+    return d.getFullYear()===year && d.getMonth()===month && d.getDate()===day;
+  });
+  if(!entries.length) return;
+
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                      'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  let content = '';
+  entries.forEach(function(entry){
+    content += '<div class="card" style="margin-bottom:12px">';
+    content += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    content += '<div style="font-size:1.6rem">&#128170;</div>';
+    content += '<div><div style="font-family:var(--font2);font-weight:700">'+(entry.dayName||'Allenamento')+'</div>';
+    content += '<div style="font-size:.8rem;color:var(--sub)">'+(entry.focus||'')+' &bull; '+new Date(entry.date).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+'</div></div>';
+    content += '<div style="margin-left:auto;text-align:right"><div style="font-size:.75rem;color:var(--sub)">Volume</div>';
+    content += '<div style="font-weight:700;color:var(--teal)">'+(entry.volume>0?Math.round(entry.volume)+'kg':'-')+'</div></div></div>';
+
+    (entry.exercises||[]).forEach(function(ex){
+      content += '<div style="padding:8px 12px;background:var(--bg2);border-radius:8px;margin-bottom:6px">';
+      content += '<div style="font-weight:600;font-size:.88rem;margin-bottom:6px">'+ex.name+'</div>';
+      content += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      (ex.sets||[]).forEach(function(s,i){
+        content += '<span style="font-size:.75rem;background:var(--card);padding:3px 8px;border-radius:20px;color:var(--sub)">S'+(s.set||i+1)+': '+(s.kg||0)+'kg &times; '+(ex.reps||'-')+'</span>';
+      });
+      content += '</div></div>';
+    });
+    content += '</div>';
+  });
+
+  var existing = document.getElementById('cal-day-modal');
+  if(existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'cal-day-modal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = '<div class="modal" style="max-width:520px;width:95%;max-height:80vh;overflow-y:auto"><div class="modal-hd"><h3>&#128197; '+day+' '+monthNames[month]+' '+year+'</h3><button class="modal-close" onclick="document.getElementById(\'cal-day-modal\').remove()">&#10005;</button></div><div style="padding:0 4px">'+content+'</div></div>';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+// ── COMPLETA ALLENAMENTO ─────────────────────────────────
+function completeWorkout(dayIdx){
+  if(!SESSION) return;
+  const prog   = SESSION.program;
+  const day    = prog?.days?.[dayIdx];
+  if(!day){ toast('Nessun allenamento trovato','error'); return; }
+
+  // Raccogli i kg inseriti dall'utente per ogni esercizio
+  const exercises = [];
+  (day.exercises||[]).forEach((ex, i)=>{
+    const sets = [];
+    for(let s=1; s<=((ex.sets)||3); s++){
+      const kgEl = document.getElementById('kg-'+i+'-'+(s-1))
+                || document.getElementById('ex-kg-'+i+'-'+s);
+      const kg   = kgEl ? parseFloat(kgEl.value)||0 : 0;
+      sets.push({ set:s, kg });
+    }
+    exercises.push({ name:ex.name, sets, reps:ex.reps, notes:ex.notes||'' });
+  });
+
+  // Crea il log entry
+  const entry = {
+    date:      new Date().toISOString(),
+    day:       dayIdx + 1,
+    dayName:   day.name || ('Giorno ' + (dayIdx+1)),
+    focus:     day.focus || day.muscle_focus || '',
+    duration:  day.duration || 60,
+    exercises,
+    volume:    exercises.reduce((tot, ex)=>
+                 tot + ex.sets.reduce((s, st)=> s + (st.kg * (parseInt(ex.reps)||10)), 0), 0),
+    streak:    (SESSION.streak||0) + 1,
+  };
+
+  // Aggiorna SESSION
+  SESSION.log = SESSION.log || [];
+  SESSION.log.unshift(entry);
+
+  // Aggiorna streak
+  const today = new Date().toDateString();
+  if(SESSION.lastWorkout !== today){
+    SESSION.streak = (SESSION.streak||0) + 1;
+    SESSION.lastWorkout = today;
+  }
+
+  // Salva
+  saveSession(SESSION);
+  if(typeof saveUserData === 'function') saveUserData({ profile: SESSION.profile, program: SESSION.program }).catch(()=>{});
+  updateUser(SESSION);
+
+  // Feedback visivo sul bottone
+  const btn = document.getElementById('btn-complete-workout');
+  if(btn){
+    btn.textContent = '🏆 Salvato!';
+    btn.style.background = 'linear-gradient(135deg,#f5c842,#f59342)';
+    btn.disabled = true;
+  }
+
+  // Toast e confetti
+  toast('🏆 Allenamento registrato! Streak: ' + SESSION.streak + ' 🔥', 'success');
+
+  // Aggiorna storico dopo 1.5s
+  setTimeout(()=>{
+    showDashSection('storico');
+  }, 1800);
+}
 function renderDashStorico(){
   const log=SESSION?.log||[];
   const prs=Object.entries(SESSION||{}).filter(([k])=>k.startsWith('pr_')).map(([k,v])=>({name:k.replace('pr_',''),kg:v}));
