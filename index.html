@@ -6122,65 +6122,279 @@ function renderDashStorico(){
 
 // ─── DIETA ────────────────────────────────────────────────
 function renderDashDieta(){
-  const u=SESSION;
-  const today=new Date().toDateString();
-  const todayMeals=(u.meals||[]).filter(m=>new Date(m.date).toDateString()===today);
-  const kcal=todayMeals.reduce((a,m)=>a+(m.kcal||0),0);
-  const prot=todayMeals.reduce((a,m)=>a+(m.protein||0),0);
-  const carbs=todayMeals.reduce((a,m)=>a+(m.carbs||0),0);
-  const fat=todayMeals.reduce((a,m)=>a+(m.fat||0),0);
-  const goalKcal=u.profile?.weight?Math.round(parseFloat(u.profile.weight||70)*30):2200;
-  const goalProt=Math.round(parseFloat(u.profile?.weight||70)*1.8);
-  document.getElementById('ds-dieta').innerHTML=`
-    <h2 style="font-family:var(--font2);margin-bottom:20px">🥗 Dieta & Nutrizione</h2>
-    <div class="grid2" style="margin-bottom:20px">
-      <div class="card">
-        <h4 style="margin-bottom:16px">Oggi — Calorie</h4>
-        <div style="display:flex;align-items:center;gap:20px">
-          <div>
-            <div style="font-family:var(--font2);font-size:2.4rem;font-weight:800;color:var(--accent)">${kcal}</div>
-            <div style="color:var(--sub);font-size:.82rem">/ ${goalKcal} kcal</div>
-          </div>
-          <div style="flex:1">
-            <div class="macro-bar-row"><span class="lbl">🥩 Prot</span><div class="progress-wrap" style="flex:1"><div class="progress-bar" style="width:${Math.min(prot/goalProt*100,100)}%;background:var(--teal)"></div></div><span class="val">${prot}g/${goalProt}g</span></div>
-            <div class="macro-bar-row"><span class="lbl">🍞 Carb</span><div class="progress-wrap" style="flex:1"><div class="progress-bar" style="width:${Math.min(carbs/200*100,100)}%;background:var(--accent)"></div></div><span class="val">${carbs}g</span></div>
-            <div class="macro-bar-row"><span class="lbl">🧈 Grassi</span><div class="progress-wrap" style="flex:1"><div class="progress-bar" style="width:${Math.min(fat/70*100,100)}%;background:var(--gold)"></div></div><span class="val">${fat}g</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <h4 style="margin-bottom:12px">Aggiungi alimento</h4>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <input class="inp" id="food-name" placeholder="Nome alimento (es. Pollo 200g)">
-          <div class="field-row c2">
-            <div class="field"><label>Kcal</label><input class="inp" id="food-kcal" type="number" placeholder="300"></div>
-            <div class="field"><label>Proteine (g)</label><input class="inp" id="food-prot" type="number" placeholder="30"></div>
-          </div>
-          <div class="field-row c2">
-            <div class="field"><label>Carboidrati (g)</label><input class="inp" id="food-carbs" type="number" placeholder="20"></div>
-            <div class="field"><label>Grassi (g)</label><input class="inp" id="food-fat" type="number" placeholder="8"></div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="addMeal()">+ Aggiungi</button>
-        </div>
-      </div>
+  const u = SESSION;
+  document.getElementById('ds-dieta').innerHTML = `
+    <h2 style="font-family:var(--font2);margin-bottom:4px">&#129385; Dieta &amp; Nutrizione</h2>
+    <p style="color:var(--sub);font-size:.85rem;margin-bottom:20px">Traccia i pasti, genera un piano AI, scopri ricette</p>
+
+    <!-- TAB BAR -->
+    <div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap">
+      <button id="dtab-oggi"   onclick="dietTab('oggi')"   class="btn btn-sm" style="border-radius:50px;background:var(--accent);color:#fff;font-weight:700">&#128197; Oggi</button>
+      <button id="dtab-piano"  onclick="dietTab('piano')"  class="btn btn-sm" style="border-radius:50px;background:var(--bg2);color:var(--sub)">&#129504; Piano AI</button>
+      <button id="dtab-ricette" onclick="dietTab('ricette')" class="btn btn-sm" style="border-radius:50px;background:var(--bg2);color:var(--sub)">&#127859; Ricette</button>
     </div>
-    <div class="card">
-      <h4 style="margin-bottom:12px">Pasti di oggi</h4>
-      ${todayMeals.length?todayMeals.map((m,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)">
-        <span style="flex:1;font-size:.88rem">${m.name}</span>
-        <span style="color:var(--sub);font-size:.82rem">${m.kcal}kcal</span>
-        <button class="btn btn-xs btn-danger" onclick="deleteMeal(${i})">✗</button>
-      </div>`).join(''):'<p style="color:var(--sub);font-size:.88rem">Nessun pasto registrato oggi</p>'}
+
+    <!-- TAB OGGI -->
+    <div id="dtab-content-oggi">
+      ${buildDietaOggi(u)}
     </div>
-    <div class="card" style="margin-top:16px">
-      <h4 style="margin-bottom:12px">🤖 AI Scanner alimenti</h4>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <input class="inp" id="ai-food-input" placeholder="Descrivi il pasto (es. 'Pollo arrosto con patate 200g')">
-        <button class="btn btn-primary btn-sm" onclick="scanFoodAI()">🔍 Analizza con AI</button>
-      </div>
-      <div id="ai-food-result" style="margin-top:10px"></div>
+
+    <!-- TAB PIANO -->
+    <div id="dtab-content-piano" style="display:none">
+      ${buildDietaPiano(u)}
+    </div>
+
+    <!-- TAB RICETTE -->
+    <div id="dtab-content-ricette" style="display:none">
+      ${buildDietaRicette(u)}
     </div>`;
 }
+
+function dietTab(tab){
+  ['oggi','piano','ricette'].forEach(function(t){
+    const btn = document.getElementById('dtab-'+t);
+    const cnt = document.getElementById('dtab-content-'+t);
+    if(btn){ btn.style.background = t===tab?'var(--accent)':'var(--bg2)'; btn.style.color = t===tab?'#fff':'var(--sub)'; btn.style.fontWeight = t===tab?'700':'400'; }
+    if(cnt) cnt.style.display = t===tab?'':'none';
+  });
+}
+
+function buildDietaOggi(u){
+  const today      = new Date().toDateString();
+  const allMeals   = u.meals||[];
+  const todayMeals = allMeals.filter(function(m){ return new Date(m.date).toDateString()===today; });
+  const kcal  = todayMeals.reduce(function(a,m){ return a+(m.kcal||0); },0);
+  const prot  = todayMeals.reduce(function(a,m){ return a+(m.protein||0); },0);
+  const carbs = todayMeals.reduce(function(a,m){ return a+(m.carbs||0); },0);
+  const fat   = todayMeals.reduce(function(a,m){ return a+(m.fat||0); },0);
+  const goalKcal = u.profile?.weight ? Math.round(parseFloat(u.profile.weight||70)*30) : 2200;
+  const goalProt = Math.round(parseFloat(u.profile?.weight||70)*1.8);
+  const kcalPct  = Math.min(Math.round(kcal/goalKcal*100),100);
+
+  // Pasti per categoria
+  const categories = ['Colazione','Pranzo','Cena','Snack'];
+  function getMealsFor(cat){ return todayMeals.filter(function(m){ return (m.category||'Snack')===cat; }); }
+
+  let catHTML = '';
+  categories.forEach(function(cat){
+    const catMeals = getMealsFor(cat);
+    const catKcal  = catMeals.reduce(function(a,m){ return a+(m.kcal||0); },0);
+    const icons    = {'Colazione':'&#9749;','Pranzo':'&#127859;','Cena':'&#127348;','Snack':'&#127822;'};
+    catHTML += '<div style="margin-bottom:12px">';
+    catHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+    catHTML += '<span style="font-weight:600;font-size:.88rem">'+icons[cat]+' '+cat+'</span>';
+    catHTML += '<span style="font-size:.78rem;color:var(--sub)">'+catKcal+' kcal</span></div>';
+    if(catMeals.length){
+      catMeals.forEach(function(m,i){
+        const realIdx = allMeals.indexOf(m);
+        catHTML += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px">';
+        catHTML += '<span style="flex:1;font-size:.83rem">'+m.name+'</span>';
+        catHTML += '<span style="color:var(--sub);font-size:.78rem">'+m.kcal+'kcal &bull; P:'+m.protein+'g C:'+m.carbs+'g F:'+m.fat+'g</span>';
+        catHTML += '<button class="btn btn-xs" style="color:var(--red);background:rgba(248,113,113,.1);border:none;border-radius:20px;padding:2px 8px;cursor:pointer" onclick="deleteMealReal('+realIdx+')">&#10005;</button></div>';
+      });
+    } else {
+      catHTML += '<div style="padding:7px 10px;background:var(--bg2);border-radius:8px;font-size:.8rem;color:var(--muted)">Nessun pasto aggiunto — clicca + per aggiungere</div>';
+    }
+    catHTML += '</div>';
+  });
+
+  return '<div class="grid2" style="margin-bottom:16px">'
+    +'<div class="card">'
+    +'<h4 style="margin-bottom:14px">&#128293; Riepilogo oggi</h4>'
+    +'<div style="text-align:center;margin-bottom:14px">'
+    +'<div style="font-family:var(--font2);font-size:2.8rem;font-weight:800;color:var(--accent)">'+kcal+'</div>'
+    +'<div style="color:var(--sub);font-size:.82rem">/ '+goalKcal+' kcal obiettivo</div>'
+    +'<div style="background:var(--bg2);border-radius:50px;height:8px;margin:10px 0;overflow:hidden"><div style="height:100%;width:'+kcalPct+'%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:50px;transition:.4s"></div></div>'
+    +'<div style="font-size:.78rem;color:var(--sub)">'+kcalPct+'% del fabbisogno</div></div>'
+    +'<div style="display:flex;flex-direction:column;gap:7px">'
+    +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:.8rem;width:70px">&#129385; Prot</span><div style="flex:1;background:var(--bg2);border-radius:50px;height:6px;overflow:hidden"><div style="height:100%;width:'+Math.min(prot/goalProt*100,100)+'%;background:var(--teal);border-radius:50px"></div></div><span style="font-size:.78rem;color:var(--sub);width:60px;text-align:right">'+prot+'g/'+goalProt+'g</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:.8rem;width:70px">&#127838; Carb</span><div style="flex:1;background:var(--bg2);border-radius:50px;height:6px;overflow:hidden"><div style="height:100%;width:'+Math.min(carbs/200*100,100)+'%;background:var(--accent);border-radius:50px"></div></div><span style="font-size:.78rem;color:var(--sub);width:60px;text-align:right">'+carbs+'g</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:.8rem;width:70px">&#129370; Grassi</span><div style="flex:1;background:var(--bg2);border-radius:50px;height:6px;overflow:hidden"><div style="height:100%;width:'+Math.min(fat/70*100,100)+'%;background:var(--gold);border-radius:50px"></div></div><span style="font-size:.78rem;color:var(--sub);width:60px;text-align:right">'+fat+'g</span></div>'
+    +'</div></div>'
+    +'<div class="card">'
+    +'<h4 style="margin-bottom:12px">&#43; Aggiungi alimento</h4>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<select class="inp" id="food-cat"><option>Colazione</option><option>Pranzo</option><option>Cena</option><option>Snack</option></select>'
+    +'<input class="inp" id="food-name" placeholder="Nome alimento (es. Pollo 200g)">'
+    +'<div class="field-row c2"><div class="field"><label>Kcal</label><input class="inp" id="food-kcal" type="number" placeholder="300"></div>'
+    +'<div class="field"><label>Proteine (g)</label><input class="inp" id="food-prot" type="number" placeholder="30"></div></div>'
+    +'<div class="field-row c2"><div class="field"><label>Carboidrati (g)</label><input class="inp" id="food-carbs" type="number" placeholder="20"></div>'
+    +'<div class="field"><label>Grassi (g)</label><input class="inp" id="food-fat" type="number" placeholder="8"></div></div>'
+    +'<button class="btn btn-primary btn-sm" onclick="addMealNew()" style="border-radius:50px">&#43; Aggiungi al diario</button>'
+    +'<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px">'
+    +'<input class="inp" id="ai-food-input" placeholder="Oppure descrivi il pasto allAI...">'
+    +'<button class="btn btn-sm" style="width:100%;margin-top:6px;border-radius:50px;background:rgba(91,94,244,.12);border:1px solid rgba(91,94,244,.3);color:var(--accent)" onclick="scanFoodAI()">&#128269; Analizza con AI</button>'
+    +'<div id="ai-food-result" style="margin-top:8px"></div></div>'
+    +'</div></div></div>'
+    +'<div class="card"><h4 style="margin-bottom:14px">&#128197; Diario pasti di oggi</h4>'+catHTML+'</div>';
+}
+
+function buildDietaPiano(u){
+  const piano = u.dietPlan;
+  const profile = u.profile||{};
+  const goal = profile.goal||'Ipertrofia';
+  const diet = profile.diet||'Bilanciata';
+
+  if(!piano){
+    return '<div class="card" style="text-align:center;padding:32px 20px">'
+      +'<div style="font-size:2.5rem;margin-bottom:12px">&#129504;</div>'
+      +'<h3 style="font-family:var(--font2);margin-bottom:8px">Piano alimentare AI</h3>'
+      +'<p style="color:var(--sub);font-size:.88rem;margin-bottom:20px">Genera un piano alimentare settimanale personalizzato in base al tuo obiettivo (<strong>'+goal+'</strong>), tipo di dieta (<strong>'+diet+'</strong>) e fabbisogno calorico.</p>'
+      +'<button class="btn btn-primary" onclick="generateDietPlan()" style="border-radius:50px;padding:12px 28px;font-size:.95rem">&#9889; Genera Piano AI</button>'
+      +'<div id="diet-plan-loading" style="display:none;margin-top:16px;color:var(--sub)">&#129504; Generando il piano personalizzato...</div>'
+      +'</div>';
+  }
+
+  let out = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<h4>&#129385; Il tuo piano settimanale</h4>'
+    +'<button class="btn btn-sm btn-ghost" onclick="SESSION.dietPlan=null;updateUser(SESSION);saveSession(SESSION);buildDietaPiano(SESSION)" style="border-radius:50px">&#8635; Rigenera</button></div>';
+
+  (piano.days||[]).forEach(function(day){
+    out += '<div class="card" style="margin-bottom:12px">';
+    out += '<div style="font-family:var(--font2);font-weight:700;margin-bottom:10px;color:var(--accent)">'+day.name+'</div>';
+    const meals = ['colazione','pranzo','cena','spuntino'];
+    meals.forEach(function(m){
+      if(day[m]){
+        const icons = {'colazione':'&#9749;','pranzo':'&#127859;','cena':'&#127348;','spuntino':'&#127822;'};
+        out += '<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border2)">';
+        out += '<span style="font-size:.85rem;min-width:80px;color:var(--sub)">'+icons[m]+' '+m.charAt(0).toUpperCase()+m.slice(1)+'</span>';
+        out += '<div style="flex:1"><div style="font-size:.85rem">'+day[m].pasto+'</div>';
+        if(day[m].kcal) out += '<div style="font-size:.75rem;color:var(--sub)">&#128293; '+day[m].kcal+'kcal &bull; P:'+day[m].prot+'g C:'+day[m].carb+'g</div>';
+        out += '</div></div>';
+      }
+    });
+    out += '</div>';
+  });
+
+  if(piano.note) out += '<div class="card" style="background:rgba(91,94,244,.06);border-color:rgba(91,94,244,.2)"><p style="font-size:.85rem;color:var(--sub)">&#128161; '+piano.note+'</p></div>';
+  return out;
+}
+
+function buildDietaRicette(u){
+  const goal = (u.profile?.goal||'Ipertrofia').toLowerCase();
+  const diet  = (u.profile?.diet||'').toLowerCase();
+
+  const hasRicette = u.ricette && u.ricette.length;
+  if(!hasRicette){
+    return '<div class="card" style="text-align:center;padding:32px 20px">'
+      +'<div style="font-size:2.5rem;margin-bottom:12px">&#127859;</div>'
+      +'<h3 style="font-family:var(--font2);margin-bottom:8px">Ricette personalizzate</h3>'
+      +'<p style="color:var(--sub);font-size:.88rem;margin-bottom:20px">Genera ricette sane e gustose in base al tuo obiettivo e tipo di dieta.</p>'
+      +'<button class="btn btn-primary" onclick="generateRicette()" style="border-radius:50px;padding:12px 28px">&#9889; Genera Ricette AI</button>'
+      +'<div id="ricette-loading" style="display:none;margin-top:16px;color:var(--sub)">Generando ricette...</div>'
+      +'</div>';
+  }
+
+  let out = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<h4>&#127859; Le tue ricette</h4>'
+    +'<button class="btn btn-sm btn-ghost" onclick="SESSION.ricette=null;updateUser(SESSION);saveSession(SESSION);renderDashDieta()" style="border-radius:50px">&#8635; Rigenera</button></div>';
+
+  (u.ricette||[]).forEach(function(r){
+    out += '<div class="card" style="margin-bottom:12px">';
+    out += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    out += '<div style="font-size:1.6rem">'+( r.tipo==='colazione'?'&#9749;':r.tipo==='snack'?'&#127822;':'&#127859;')+'</div>';
+    out += '<div><div style="font-family:var(--font2);font-weight:700">'+r.nome+'</div>';
+    out += '<div style="font-size:.78rem;color:var(--sub)">'+r.tipo+' &bull; &#128293; '+r.kcal+'kcal &bull; &#8987; '+r.tempo+'</div></div></div>';
+    out += '<div style="font-size:.83rem;color:var(--sub);margin-bottom:8px">&#129517; <strong>Ingredienti:</strong> '+r.ingredienti+'</div>';
+    out += '<div style="font-size:.83rem;color:var(--sub)">&#128221; <strong>Preparazione:</strong> '+r.preparazione+'</div>';
+    out += '<div style="display:flex;gap:10px;margin-top:8px;font-size:.76rem">';
+    out += '<span style="background:rgba(15,214,194,.1);color:var(--teal);padding:3px 10px;border-radius:20px">P: '+r.prot+'g</span>';
+    out += '<span style="background:rgba(91,94,244,.1);color:var(--accent);padding:3px 10px;border-radius:20px">C: '+r.carb+'g</span>';
+    out += '<span style="background:rgba(245,200,66,.1);color:var(--gold);padding:3px 10px;border-radius:20px">F: '+r.fat+'g</span>';
+    out += '</div></div>';
+  });
+  return out;
+}
+
+// ── Aggiungi pasto con categoria ─────────────────────────────
+function addMealNew(){
+  const name = document.getElementById('food-name')?.value.trim();
+  if(!name){ toast('Inserisci il nome del pasto','error'); return; }
+  const meal = {
+    name, category: document.getElementById('food-cat')?.value||'Snack',
+    kcal:    parseInt(document.getElementById('food-kcal')?.value||0),
+    protein: parseInt(document.getElementById('food-prot')?.value||0),
+    carbs:   parseInt(document.getElementById('food-carbs')?.value||0),
+    fat:     parseInt(document.getElementById('food-fat')?.value||0),
+    date:    new Date().toISOString()
+  };
+  SESSION.meals = SESSION.meals||[];
+  SESSION.meals.push(meal);
+  updateUser(SESSION); saveSession(SESSION);
+  toast('&#10003; '+meal.category+' aggiunta!','success');
+  renderDashDieta();
+}
+
+// ── Elimina pasto per indice reale ───────────────────────────
+function deleteMealReal(realIdx){
+  if(SESSION.meals && SESSION.meals[realIdx]!==undefined){
+    SESSION.meals.splice(realIdx,1);
+    updateUser(SESSION); saveSession(SESSION); renderDashDieta();
+  }
+}
+
+// ── Genera piano dieta AI ────────────────────────────────────
+async function generateDietPlan(){
+  const btn = document.querySelector('[onclick="generateDietPlan()"]');
+  const loading = document.getElementById('diet-plan-loading');
+  if(btn) btn.style.display='none';
+  if(loading) loading.style.display='';
+
+  const p = SESSION.profile||{};
+  const prompt = 'Sei un nutrizionista. Crea un piano alimentare settimanale (7 giorni) per: Obiettivo='+( p.goal||'Ipertrofia')+', Peso='+(p.weight||75)+'kg, Sesso='+(p.sex||'M')+', Dieta='+(p.diet||'Bilanciata')+', Kcal/giorno='+(p.weight?Math.round(parseFloat(p.weight)*30):2200)+'. Rispondi SOLO in JSON valido (no markdown): {"days":[{"name":"Lunedi","colazione":{"pasto":"...","kcal":0,"prot":0,"carb":0},"pranzo":{"pasto":"...","kcal":0,"prot":0,"carb":0},"cena":{"pasto":"...","kcal":0,"prot":0,"carb":0},"spuntino":{"pasto":"...","kcal":0,"prot":0,"carb":0}}],"note":"..."}';
+
+  try {
+    const resp = await fetch('/api/ai',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:3000,
+        messages:[{role:'user',content:prompt}] })
+    });
+    const data = await resp.json();
+    const txt  = (data.content||[]).find(function(b){ return b.type==='text'; })?.text||'';
+    const clean = txt.replace(/```json|```/g,'').trim();
+    SESSION.dietPlan = JSON.parse(clean);
+    updateUser(SESSION); saveSession(SESSION);
+    toast('Piano alimentare generato!','success');
+    renderDashDieta();
+    setTimeout(function(){ dietTab('piano'); }, 100);
+  } catch(e){
+    if(btn) btn.style.display='';
+    if(loading) loading.style.display='none';
+    toast('Errore generazione piano. Riprova.','error');
+  }
+}
+
+// ── Genera ricette AI ────────────────────────────────────────
+async function generateRicette(){
+  const btn = document.querySelector('[onclick="generateRicette()"]');
+  const loading = document.getElementById('ricette-loading');
+  if(btn) btn.style.display='none';
+  if(loading) loading.style.display='';
+
+  const p = SESSION.profile||{};
+  const prompt = 'Sei uno chef nutrizionista. Crea 6 ricette sane e gustose per: Obiettivo='+(p.goal||'Ipertrofia')+', Dieta='+(p.diet||'Bilanciata')+', Peso='+(p.weight||75)+'kg. Includi colazione, pranzo, cena e spuntini. Rispondi SOLO in JSON valido: [{"nome":"...","tipo":"colazione|pranzo|cena|snack","kcal":0,"prot":0,"carb":0,"fat":0,"tempo":"15min","ingredienti":"...","preparazione":"..."}]';
+
+  try {
+    const resp = await fetch('/api/ai',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:3000,
+        messages:[{role:'user',content:prompt}] })
+    });
+    const data = await resp.json();
+    const txt  = (data.content||[]).find(function(b){ return b.type==='text'; })?.text||'';
+    const clean = txt.replace(/```json|```/g,'').trim();
+    SESSION.ricette = JSON.parse(clean);
+    updateUser(SESSION); saveSession(SESSION);
+    toast('Ricette generate!','success');
+    renderDashDieta();
+    setTimeout(function(){ dietTab('ricette'); }, 100);
+  } catch(e){
+    if(btn) btn.style.display='';
+    if(loading) loading.style.display='none';
+    toast('Errore generazione ricette. Riprova.','error');
+  }
+}
+
 
 function addMeal(){
   const name=document.getElementById('food-name')?.value.trim();
