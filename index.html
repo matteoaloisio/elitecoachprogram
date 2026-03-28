@@ -1090,7 +1090,7 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-sidebar-item" onclick="showDashSection('calendario')" data-sec="calendario"><span class="ico">&#128198;</span>Calendario</div>
     <div class="dash-sidebar-item" onclick="showDashSection('dieta')" data-sec="dieta"><span class="ico">🥗</span>Dieta</div>
     <div class="dash-sidebar-item" onclick="showDashSection('sfide')" data-sec="sfide"><span class="ico">⭐</span>Sfide</div>
-    <div class="dash-sidebar-item" onclick="showDashSection('prenota')" data-sec="prenota"><span class="ico">📅</span>Prenota</div>
+    
     <div class="dash-sidebar-item" onclick="showDashSection('chat')" data-sec="chat"><span class="ico">💬</span>Chat <span id="dash-chat-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:.7rem;margin-left:auto">!</span></div>
     <div class="dash-sidebar-item" onclick="showDashSection('dati')" data-sec="dati"><span class="ico">📊</span>Dati</div>
     <div class="dash-sidebar-item" onclick="showDashSection('piano')" data-sec="piano"><span class="ico">💳</span>Piano</div>
@@ -1102,7 +1102,7 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-sidebar-item" onclick="showDashSection('export')" data-sec="export"><span class="ico">📥</span>Export</div>
     <div class="dash-sidebar-item" onclick="showDashSection('wearable')" data-sec="wearable"><span class="ico">⌚</span>Wearable</div>
     <div class="dash-sidebar-item" onclick="showDashSection('aicoach')" data-sec="aicoach"><span class="ico">🤖</span>AI Coach</div>
-    <div class="dash-sidebar-item" onclick="showDashSection('checkin')" data-sec="checkin"><span class="ico">📋</span>Check-in</div>
+    
     </div>
   </aside>
   <main class="dash-main" id="dash-main">
@@ -6612,52 +6612,112 @@ function sendChatMsg(){
 
 // ─── DATI ─────────────────────────────────────────────────
 function renderDashDati(){
-  const u=SESSION;
-  const weights=u.weight||[];
-  const lastW=weights.length?weights[weights.length-1]:null;
-  document.getElementById('ds-dati').innerHTML=`
-    <h2 style="font-family:var(--font2);margin-bottom:20px">📊 I tuoi progressi</h2>
-    <div class="grid2" style="margin-bottom:20px">
-      <div class="card">
-        <h4 style="margin-bottom:12px">Registra peso</h4>
-        <div style="display:flex;gap:10px;align-items:end;margin-bottom:12px">
-          <div class="field" style="flex:1"><label>Peso (kg)</label><input class="inp" id="w-input" type="number" step="0.1" placeholder="${lastW?.kg||75}"></div>
-          <button class="btn btn-primary" onclick="addWeight()">+</button>
-        </div>
-        ${lastW?`<p style="color:var(--sub);font-size:.85rem">Ultimo: <strong style="color:var(--text)">${lastW.kg}kg</strong> — ${lastW.date}</p>`:''}
-      </div>
-      <div class="card">
-        <h4 style="margin-bottom:12px">Misure corporee (cm)</h4>
-        <div class="field-row c2">
-          ${['Vita','Fianchi','Petto','Braccio destro','Coscia destra','Polpaccio','Collo'].slice(0,4).map(m=>`
-            <div class="field"><label style="font-size:.78rem">${m}</label>
-              <input class="inp" id="meas-${m.replace(' ','-')}" type="number" placeholder="—" value="${u.measures?.[m]||''}">
-            </div>`).join('')}
-        </div>
-        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveMeasures()">Salva misure</button>
-      </div>
-    </div>
-    ${weights.length>=2?`
-    <div class="card" style="margin-bottom:16px">
-      <h4 style="margin-bottom:12px">📈 Andamento peso</h4>
-      <div class="chart-wrap">
-        ${weights.slice(-20).map(w=>{
-          const maxW=Math.max(...weights.map(x=>x.kg));
-          const minW=Math.min(...weights.map(x=>x.kg));
-          const range=maxW-minW||1;
-          const h=Math.round(((w.kg-minW)/range)*100)+20;
-          return `<div class="chart-bar" style="background:var(--accent);height:${h}%" title="${w.kg}kg — ${w.date}">
-            <div class="chart-bar-tip">${w.kg}kg<br>${w.date}</div></div>`;
-        }).join('')}
-      </div>
-    </div>`:''}
-    <div class="card">
-      <h4 style="margin-bottom:12px">📸 Foto Progressi</h4>
-      <div class="photo-grid" id="photo-grid">
-        ${(u.photos||[]).slice(0,8).map(p=>`<div class="photo-cell has-photo"><div style="font-size:1.5rem;color:var(--sub)">🖼</div><div style="font-size:.65rem;color:var(--muted);margin-top:4px">${p.date||''}</div></div>`).join('')}
-        <div class="photo-cell" onclick="addPhoto()"><div>+</div><div style="font-size:.65rem;color:var(--muted);margin-top:4px">Aggiungi</div></div>
-      </div>
-    </div>`;
+  var u=SESSION,p=u.profile||{},W=u.weight||[];
+  var lw=W.length?W[W.length-1]:null;
+  var wkg=lw?parseFloat(lw.kg||0):parseFloat(p.weight||0);
+  var hcm=parseFloat(p.height||0);
+  var bmi=(hcm>0&&wkg>0)?(wkg/Math.pow(hcm/100,2)).toFixed(1):'—';
+  var bc=bmi=='—'?'var(--sub)':bmi<18.5?'var(--accent)':bmi<25?'var(--teal)':bmi<30?'var(--gold)':'var(--red)';
+  var bn=bmi=='—'?'':bmi<18.5?'Sottopeso':bmi<25?'Normopeso':bmi<30?'Sovrappeso':'Obesita';
+  var tdee=wkg>0?Math.round(wkg*30):0;
+  var prot=wkg>0?Math.round(wkg*1.8):0;
+  var L8=W.slice(-8);
+  var maxW=L8.length?Math.max.apply(null,L8.map(function(w){return parseFloat(w.kg||0);}))+1:100;
+  var minW=L8.length?Math.min.apply(null,L8.map(function(w){return parseFloat(w.kg||0);}))-1:60;
+  var rng=maxW-minW||1;
+  var graphBars=L8.map(function(w){
+    var pct=Math.round((parseFloat(w.kg||0)-minW)/rng*80)+10;
+    var dt=w.date?new Date(w.date).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}):'';
+    return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">'
+      +'<span style="font-size:.62rem;color:var(--sub)">'+parseFloat(w.kg||0).toFixed(1)+'</span>'
+      +'<div style="flex:1;width:100%;display:flex;align-items:flex-end">'
+      +'<div style="width:100%;height:'+pct+'%;background:linear-gradient(180deg,var(--accent),var(--teal));border-radius:4px 4px 0 0;min-height:6px"></div></div>'
+      +'<span style="font-size:.57rem;color:var(--muted)">'+dt+'</span></div>';
+  }).join('');
+  var mF=[['Petto','chest'],['Vita','waist'],['Fianchi','hips'],['Coscia DX','thigh'],['Braccio DX','arm'],['Polpaccio','calf']];
+  var mH=mF.map(function(f){
+    return '<div class="field"><label style="font-size:.72rem">'+f[0]+' (cm)</label>'
+      +'<input class="inp" id="m-'+f[1]+'" type="number" step="0.5" placeholder="—" value="'
+      +(u.measures&&u.measures[f[1]]?u.measures[f[1]]:'')+'" style="text-align:center"></div>';
+  }).join('');
+  var pI=[['Altezza','height','cm'],['Peso target','target_weight','kg'],['Eta','age','anni'],
+          ['Sesso','sex',''],['BF%','body_fat','%'],['Livello','level',''],['Obiettivo','goal',''],['Dieta','diet','']];
+  var pH=pI.map(function(f){
+    return '<div style="padding:10px;background:var(--bg2);border-radius:8px">'
+      +'<div style="font-size:.7rem;color:var(--sub)">'+f[0]+'</div>'
+      +'<div style="font-weight:700;font-size:.88rem">'+(p[f[1]]||'—')+(p[f[1]]&&f[2]?' '+f[2]:'')+'</div></div>';
+  }).join('');
+  var wR=W.slice().reverse().slice(0,10).map(function(w,i,arr){
+    var pr=arr[i+1],d=pr?(parseFloat(w.kg||0)-parseFloat(pr.kg||0)).toFixed(1):'—';
+    var dc=d=='—'?'var(--sub)':parseFloat(d)>0?'var(--red)':'var(--teal)';
+    return '<tr style="border-bottom:1px solid var(--border2)">'
+      +'<td style="padding:5px 0;color:var(--sub);font-size:.79rem">'+(w.date?new Date(w.date).toLocaleDateString('it-IT'):'—')+'</td>'
+      +'<td style="text-align:right;font-weight:700;font-size:.84rem">'+parseFloat(w.kg||0).toFixed(1)+'kg</td>'
+      +'<td style="text-align:right;color:'+dc+';font-size:.79rem">'+(d!='—'&&parseFloat(d)>0?'+':'')+d+(d!='—'?'kg':'')+'</td>'
+      +'<td><button onclick="deleteWeight('+(W.length-1-i)+')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem">&#10005;</button></td></tr>';
+  }).join('');
+  var el=document.getElementById('ds-dati');
+  el.innerHTML='<h2 style="font-family:var(--font2);margin-bottom:4px">&#128200; I tuoi Progressi</h2>'
+    +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:16px">Peso, misure e parametri fisici</p>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">'
+    +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.5rem;font-weight:800;color:var(--accent);font-family:var(--font2)">'+(wkg?wkg.toFixed(1)+'kg':'—')+'</div><div style="font-size:.7rem;color:var(--sub)">Peso attuale</div></div>'
+    +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.5rem;font-weight:800;color:'+bc+';font-family:var(--font2)">'+bmi+'</div><div style="font-size:.7rem;color:var(--sub)">BMI '+bn+'</div></div>'
+    +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.5rem;font-weight:800;color:var(--teal);font-family:var(--font2)">'+(tdee?tdee+'kcal':'—')+'</div><div style="font-size:.7rem;color:var(--sub)">TDEE/giorno</div></div>'
+    +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.5rem;font-weight:800;color:var(--gold);font-family:var(--font2)">'+(prot?prot+'g':'—')+'</div><div style="font-size:.7rem;color:var(--sub)">Proteine/giorno</div></div>'
+    +'</div>'
+    +'<div class="grid2" style="margin-bottom:16px">'
+    +'<div class="card"><h4 style="margin-bottom:12px">&#9878; Registra peso</h4>'
+    +'<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px">'
+    +'<div class="field" style="flex:1"><label>Peso (kg)</label>'
+    +'<input class="inp" id="w-input" type="number" step="0.1" placeholder="'+(wkg?wkg.toFixed(1):'75.0')+'" style="font-size:1.1rem;font-weight:700"></div>'
+    +'<button class="btn btn-primary btn-sm" onclick="addWeight()" style="border-radius:50px;margin-bottom:2px">+ Salva</button></div>'
+    +(L8.length>=2
+      ?'<div style="height:110px;display:flex;align-items:flex-end;gap:3px">'+graphBars+'</div>'
+       +'<div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--sub);margin-top:4px">'
+       +'<span>Min: '+minW.toFixed(1)+'</span><span>'+L8.length+' mis.</span><span>Max: '+maxW.toFixed(1)+'</span></div>'
+      :'<p style="color:var(--sub);font-size:.82rem">Registra almeno 2 pesi per il grafico</p>')
+    +(W.length?'<div style="margin-top:12px;max-height:140px;overflow-y:auto">'
+       +'<table style="width:100%"><thead><tr style="color:var(--sub)">'
+       +'<th style="text-align:left;padding:4px 0;font-size:.74rem">Data</th>'
+       +'<th style="text-align:right;font-size:.74rem">Kg</th>'
+       +'<th style="text-align:right;font-size:.74rem">Var</th><th></th></tr></thead>'
+       +'<tbody>'+wR+'</tbody></table></div>':'')
+    +'</div>'
+    +'<div class="card"><h4 style="margin-bottom:12px">&#128101; Misure corporee</h4>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'+mH+'</div>'
+    +'<button class="btn btn-primary btn-sm" onclick="saveMeasures()" style="width:100%;border-radius:50px">&#128190; Salva misure</button>'
+    +(u.measuresDate?'<div style="margin-top:8px;font-size:.75rem;color:var(--sub);text-align:center">Ultima: '+new Date(u.measuresDate).toLocaleDateString('it-IT')+'</div>':'')
+    +'</div></div>'
+    +'<div class="card"><h4 style="margin-bottom:12px">&#128100; Profilo fisico</h4>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+pH+'</div></div>';
+}
+function addWeight(){
+  var v=parseFloat((document.getElementById('w-input')||{}).value);
+  if(!v||v<20||v>300){toast('Peso valido richiesto (20-300 kg)','error');return;}
+  SESSION.weight=SESSION.weight||[];
+  SESSION.weight.push({kg:v,date:new Date().toISOString()});
+  if(!SESSION.profile)SESSION.profile={};
+  SESSION.profile.weight=v;
+  updateUser(SESSION);saveSession(SESSION);
+  toast('Peso salvato: '+v+'kg','success');
+  renderDashDati();
+}
+function deleteWeight(idx){
+  if(SESSION.weight&&SESSION.weight[idx]!=null){
+    SESSION.weight.splice(idx,1);
+    updateUser(SESSION);saveSession(SESSION);renderDashDati();
+  }
+}
+function saveMeasures(){
+  var fs=['chest','waist','hips','thigh','arm','calf'];
+  if(!SESSION.measures)SESSION.measures={};
+  fs.forEach(function(f){
+    var v=parseFloat((document.getElementById('m-'+f)||{}).value);
+    if(v&&v>0)SESSION.measures[f]=v;
+  });
+  SESSION.measuresDate=new Date().toISOString();
+  updateUser(SESSION);saveSession(SESSION);
+  toast('Misure salvate!','success');renderDashDati();
 }
 
 function addWeight(){
@@ -6915,68 +6975,82 @@ function toggleWearable(name){
 // ─── AI COACH ─────────────────────────────────────────────
 let aiCoachHistory=[];
 function renderDashAICoach(){
-  document.getElementById('ds-aicoach').innerHTML=`
-    <h2 style="font-family:var(--font2);margin-bottom:20px">🤖 AI Coach personale</h2>
-    <div class="chat-wrap" style="height:450px">
-      <div class="chat-messages" id="ai-msgs">
-        <div class="msg in"><div>Ciao ${SESSION?.name}! 👋 Sono il tuo AI Coach personale. Posso aiutarti con schede, nutrizione, tecnica degli esercizi o qualsiasi domanda sul fitness. Come posso aiutarti?</div></div>
-        ${aiCoachHistory.slice(1).map(m=>`<div class="msg ${m.role==='user'?'out':'in'}"><div>${m.content}</div></div>`).join('')}
-      </div>
-      <div class="chat-input-row">
-        <input class="inp" id="ai-coach-inp" placeholder="Chiedi al tuo AI Coach..." onkeypress="if(event.key==='Enter')askAICoach()">
-        <button class="btn btn-primary" onclick="askAICoach()">Invia</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
-      ${['Come migliorare lo squat?','Crea un piano dieta','Come recuperare da un infortunio?','Dimmi un consiglio sul sonno','Analizza la mia tecnica 🎥'].map(s=>
-        `<button class="btn btn-ghost btn-xs" onclick="document.getElementById('ai-coach-inp').value='${s}';askAICoach()">${s}</button>`
-      ).join('')}
-    </div>`;
-  const msgs=document.getElementById('ai-msgs');
-  if(msgs) msgs.scrollTop=msgs.scrollHeight;
+  var u=SESSION,p=u.profile||{},cfg=u.coachConfig||{};
+  var sugg=[
+    ['&#128170; Analizza','Analizza il mio programma per obiettivo '+(p.goal||'fitness')+'.'],
+    ['&#127869; Dieta','3 consigli dieta per: '+(p.goal||'fitness')+', dieta '+(p.diet||'bilanciata')+'.'],
+    ['&#128293; Recupero','Come ottimizzare il recupero? Livello: '+(p.level||'intermedio')+'.'],
+    ['&#9888; Infortuni','Infortuni da prevenire per: '+(p.goal||'fitness')+'?'],
+  ];
+  var msgs=document.createElement('div');
+  msgs.id='ai-msgs';
+  msgs.style.cssText='height:360px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px';
+  var welcome=document.createElement('div');
+  welcome.style.cssText='background:var(--bg2);border-radius:12px 12px 12px 4px;padding:12px 14px;max-width:85%;font-size:.875rem;line-height:1.6';
+  welcome.innerHTML='Ciao <strong>'+(u.name||'atleta')+'</strong>! &#128075; Sono il tuo AI Coach.<br>Profilo: <strong>'+(p.goal||'—')+'</strong> &bull; <strong>'+(p.level||'—')+'</strong>. Come posso aiutarti?';
+  msgs.appendChild(welcome);
+  (aiCoachHistory||[]).slice(1).forEach(function(m){
+    var el=document.createElement('div');
+    var isusr=m.role==='user';
+    el.style.cssText='background:'+(isusr?'var(--accent)':'var(--bg2)')+';color:'+(isusr?'#fff':'var(--text)')+';border-radius:'+(isusr?'12px 12px 4px 12px':'12px 12px 12px 4px')+';padding:10px 14px;max-width:85%;font-size:.875rem;line-height:1.6'+(isusr?';align-self:flex-end':'');
+    el.innerHTML=m.content.replace(/\n/g,'<br>');
+    msgs.appendChild(el);
+  });
+  var out='<h2 style="font-family:var(--font2);margin-bottom:4px">&#129504; AI Coach Personale</h2>'
+    +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:12px">Coach per tecnica, nutrizione, programmazione e recovery</p>'
+    +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px" id="ai-sugg"></div>'
+    +'<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px" id="ai-chat-card"></div>'
+    +'<div class="card"><h4 style="margin-bottom:12px">&#9881; Configurazione</h4>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +'<div class="field"><label>Personalita</label><select class="inp" id="coach-style" onchange="saveCoachConfig()">'
+    +'<option value="motivatore" '+((cfg.style||'motivatore')==='motivatore'?'selected':'')+'>&#128293; Motivatore</option>'
+    +'<option value="scientifico" '+(cfg.style==='scientifico'?'selected':'')+'>&#129516; Scientifico</option>'
+    +'<option value="amichevole" '+(cfg.style==='amichevole'?'selected':'')+'>&#128522; Amichevole</option>'
+    +'<option value="militare" '+(cfg.style==='militare'?'selected':'')+'>&#128170; Drill Sergeant</option>'
+    +'</select></div>'
+    +'<div class="field"><label>Lingua</label><select class="inp" id="coach-lang" onchange="saveCoachConfig()">'
+    +'<option value="it" '+((cfg.lang||'it')==='it'?'selected':'')+'>&#127470;&#127481; Italiano</option>'
+    +'<option value="en" '+(cfg.lang==='en'?'selected':'')+'>&#127468;&#127463; English</option>'
+    +'</select></div>'
+    +'<div class="field" style="grid-column:1/-1"><label>Istruzioni personalizzate</label>'
+    +'<textarea class="inp" id="coach-custom" rows="2" placeholder="Es. Sono powerlifter, focus su forza..." onblur="saveCoachConfig()" style="resize:vertical">'+(cfg.custom||'')+'</textarea></div>'
+    +'</div><button class="btn btn-sm btn-ghost" onclick="resetAICoach()" style="margin-top:8px;border-radius:50px;font-size:.78rem">&#128465; Azzera chat</button></div>';
+  var el=document.getElementById('ds-aicoach');
+  el.innerHTML=out;
+  var suggDiv=document.getElementById('ai-sugg');
+  sugg.forEach(function(s){
+    var b=document.createElement('button');
+    b.className='btn btn-sm';
+    b.style.cssText='border-radius:50px;background:var(--bg2);border:1px solid var(--border);color:var(--sub);font-size:.75rem;padding:5px 10px';
+    b.textContent=s[0].replace(/&#\d+;/g,function(m){var c=parseInt(m.slice(2,-1));return String.fromCodePoint(c);});
+    b.addEventListener('click',function(){aiCoachQuick(s[1]);});
+    suggDiv.appendChild(b);
+  });
+  var chatCard=document.getElementById('ai-chat-card');
+  chatCard.appendChild(msgs);
+  var inputRow=document.createElement('div');
+  inputRow.style.cssText='border-top:1px solid var(--border);padding:10px;display:flex;gap:8px';
+  inputRow.innerHTML='<input class="inp" id="ai-coach-inp" placeholder="Chiedi qualsiasi cosa..." style="flex:1;border-radius:50px"><button class="btn btn-primary" onclick="sendAICoach()" style="border-radius:50px;padding:10px 16px">Invia &#10148;</button>';
+  chatCard.appendChild(inputRow);
+  var inp=document.getElementById('ai-coach-inp');
+  if(inp) inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAICoach();}});
+  setTimeout(function(){var m=document.getElementById('ai-msgs');if(m)m.scrollTop=m.scrollHeight;},50);
 }
-
-async function askAICoach(){
-  if(!SESSION?.pro){
-    const free=parseInt(localStorage.getItem('ecp_ai_uses')||'0');
-    if(free>=3){ toast('Limite AI raggiunto. Attiva Pro per messaggi illimitati!','error'); openPayModal(); return; }
-    localStorage.setItem('ecp_ai_uses',free+1);
-  }
-  const inp=document.getElementById('ai-coach-inp');
-  if(!inp||!inp.value.trim()) return;
-  const msg=inp.value.trim(); inp.value='';
-  aiCoachHistory.push({role:'user',content:msg});
-  const msgs=document.getElementById('ai-msgs');
-  if(msgs){
-    msgs.innerHTML+=`<div class="msg out"><div>${msg}</div></div>`;
-    msgs.innerHTML+=`<div class="msg in" id="ai-typing"><div>⋯</div></div>`;
-    msgs.scrollTop=msgs.scrollHeight;
-  }
-  try {
-    const u=SESSION;
-    const sys=`Sei un coach fitness AI di EliteCoachProgram.fit. Utente: ${u.name}, Obiettivo: ${u.profile?.goal||'non specificato'}, Livello: ${u.profile?.level||'principiante'}. Rispondi in italiano, conciso, motivante e pratico.`;
-    const resp=await fetch('/api/ai',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',max_tokens:600,
-        system:sys,
-        messages:aiCoachHistory.slice(-8)
-      })
-    });
-    const data=await resp.json();
-    const reply=data.content?.[0]?.text||'Mi dispiace, riprova.';
-    aiCoachHistory.push({role:'assistant',content:reply});
-    const typing=document.getElementById('ai-typing');
-    if(typing) typing.outerHTML=`<div class="msg in"><div>${reply}</div></div>`;
-    if(msgs) msgs.scrollTop=msgs.scrollHeight;
-  } catch(e){
-    const typing=document.getElementById('ai-typing');
-    if(typing) typing.outerHTML=`<div class="msg in"><div>Errore di connessione. Riprova.</div></div>`;
-  }
+function aiCoachQuick(q){
+  var i=document.getElementById('ai-coach-inp');
+  if(i&&q){i.value=q;sendAICoach();}
 }
+function saveCoachConfig(){
+  if(!SESSION)return;
+  SESSION.coachConfig={
+    style:(document.getElementById('coach-style')||{}).value||'motivatore',
+    lang:(document.getElementById('coach-lang')||{}).value||'it',
+    custom:(document.getElementById('coach-custom')||{}).value||''
+  };
+  updateUser(SESSION);saveSession(SESSION);toast('Configurazione salvata','success');
+}
+function resetAICoach(){if(typeof aiCoachHistory!=='undefined')aiCoachHistory=[];renderDashAICoach();toast('Chat azzerata','success');}
 
-// ─── TRAINER DASHBOARD ────────────────────────────────────
 function renderTrainerDash(){
   TR_SESSION=loadTrainerSession();
   if(!TR_SESSION){ showPage('pg-trainer-login'); return; }
@@ -11108,53 +11182,115 @@ function renderVideoAnalysis(){
 }
 
 function renderDashAnalysis(){
-  const el = document.getElementById('ds-analysis');
-  if(!el) return;
-  el.innerHTML = `
-    <h2 style="font-family:var(--font2);margin-bottom:6px">🎥 Analisi Movimento AI</h2>
-    <p style="font-size:12px;color:var(--sub);margin-bottom:20px">Carica una foto o screenshot del tuo esercizio e l'AI analizzerà la postura</p>
+  var el=document.getElementById('ds-analysis');
+  if(!el)return;
+  el.innerHTML=
+    '<h2 style="font-family:var(--font2);margin-bottom:4px">&#127909; Analisi Movimento AI</h2>'
+    +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:20px">Carica una foto del tuo esercizio — AI analizza postura, tecnica e ti fornisce feedback professionale</p>'
+    +'<div class="grid2" style="margin-bottom:16px">'
 
-    <div class="card" style="margin-bottom:16px">
-      <h4 style="margin-bottom:14px">📸 Analisi postura</h4>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="field">
-          <label>Esercizio da analizzare</label>
-          <select class="inp" id="analysis-exercise" style="max-width:280px">
-            ${['Squat','Stacco da Terra','Panca Piana Bilanciere','Trazioni Presa Larga',
-               'Rematore Bilanciere Prono','Overhead Press','Hip Thrust Bilanciere',
-               'Altro (descrivilo)'].map(e=>`<option>${e}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field">
-          <label>Carica immagine (foto / screenshot)</label>
-          <input type="file" accept="image/*" class="inp" id="analysis-img" onchange="previewAnalysisImg(this)">
-        </div>
-        <div id="analysis-preview" style="display:none;margin-top:8px">
-          <img id="analysis-preview-img" style="max-height:280px;border-radius:10px;border:1px solid var(--border2)">
-        </div>
-        <button class="btn btn-primary" onclick="analyzeMovement()" style="align-self:start">
-          🤖 Analizza con AI →
-        </button>
-      </div>
-    </div>
+    +'<div class="card">'
+    +'<h4 style="margin-bottom:12px">&#128247; Carica immagine</h4>'
+    +'<div style="border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px" onclick="document.getElementById(\'analysis-file\').click()" onmouseenter="this.style.borderColor=\'var(--accent)\'" onmouseleave="this.style.borderColor=\'var(--border)\'">'
+    +'<div id="analysis-preview" style="display:none;margin-bottom:8px"><img id="analysis-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain"></div>'
+    +'<div id="analysis-placeholder"><div style="font-size:2rem;margin-bottom:6px">&#128247;</div><div style="font-size:.84rem;color:var(--sub)">Clicca per caricare<br>JPG, PNG, screenshot</div></div>'
+    +'</div>'
+    +'<input type="file" id="analysis-file" accept="image/*" style="display:none" onchange="previewAnalysis(this)">'
+    +'<div class="field" style="margin-bottom:10px"><label>Esercizio</label>'
+    +'<select class="inp" id="analysis-exercise" onchange="document.getElementById(\'custom-ex-wrap\').style.display=this.value===\'custom\'?\'\':\'none\'">'
+    +'<option value="">-- Seleziona --</option>'
+    +'<optgroup label="Compound"><option>Squat</option><option>Deadlift / Stacco</option><option>Bench Press</option><option>Overhead Press</option><option>Trazioni / Pull Up</option><option>Barbell Row</option></optgroup>'
+    +'<optgroup label="Olimpici"><option>Clean and Jerk</option><option>Snatch</option><option>Push Press</option></optgroup>'
+    +'<optgroup label="Calistenia"><option>Muscle Up</option><option>Handstand</option><option>Dip</option><option>Pistol Squat</option></optgroup>'
+    +'<optgroup label="Funzionale"><option>Kettlebell Swing</option><option>Box Jump</option><option>Hip Thrust</option><option>Lunge</option></optgroup>'
+    +'<optgroup label="Altro"><option value="custom">Altro...</option></optgroup>'
+    +'</select></div>'
+    +'<div class="field" id="custom-ex-wrap" style="display:none;margin-bottom:10px"><label>Nome esercizio</label><input class="inp" id="custom-exercise" placeholder="Es. Bulgarian Split Squat"></div>'
+    +'<div class="field" style="margin-bottom:12px"><label>Note aggiuntive (opzionale)</label><input class="inp" id="analysis-notes" placeholder="Es. mi sembra che il ginocchio collassi..."></div>'
+    +'<button class="btn btn-primary" id="btn-analyze" onclick="analyzeMovement()" style="width:100%;border-radius:50px;font-weight:700">&#129504; Analizza con AI</button>'
+    +'</div>'
 
-    <div id="analysis-result" style="display:none">
-      <div class="card" style="border-color:rgba(91,94,244,.3)">
-        <h4 style="font-family:var(--font2);margin-bottom:14px;color:var(--accent-xl)">📊 Risultati analisi</h4>
-        <div id="analysis-content"></div>
-      </div>
-    </div>
+    +'<div class="card" style="display:flex;flex-direction:column">'
+    +'<h4 style="margin-bottom:12px">&#128203; Feedback AI</h4>'
+    +'<div id="analysis-result" style="flex:1;min-height:200px;background:var(--bg2);border-radius:10px;padding:14px;font-size:.86rem;color:var(--sub);line-height:1.7">'
+    +'<div style="text-align:center;padding:30px 0;color:var(--muted)"><div style="font-size:2rem;margin-bottom:8px">&#129504;</div>Carica una foto e seleziona l\'esercizio per ricevere l\'analisi</div>'
+    +'</div></div></div>'
 
-    <div class="card" style="margin-top:16px;background:rgba(91,94,244,.04)">
-      <h4 style="margin-bottom:8px;font-size:13px">💡 Suggerimenti per ottenere la migliore analisi</h4>
-      <ul style="font-size:12px;color:var(--sub);line-height:2;padding-left:16px">
-        <li>Foto laterale per squat e stacco</li>
-        <li>Foto frontale per overhead press e lateral raise</li>
-        <li>Immagine nitida con buona illuminazione</li>
-        <li>Tutto il corpo visibile nel frame</li>
-        <li>Scatta al momento di massima difficoltà (punto critico)</li>
-      </ul>
-    </div>`;
+    +'<div class="card"><h4 style="margin-bottom:12px">&#128218; Storico analisi</h4>'
+    +'<div id="analysis-history">'
+    +((SESSION&&SESSION.analysisHistory&&SESSION.analysisHistory.length)
+      ? (SESSION.analysisHistory||[]).slice(0,5).map(function(a){
+          return '<div style="padding:10px 0;border-bottom:1px solid var(--border2)">'
+            +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+            +'<span style="font-weight:600;font-size:.88rem">'+a.exercise+'</span>'
+            +'<span style="font-size:.75rem;color:var(--sub);margin-left:auto">'+new Date(a.date).toLocaleDateString('it-IT')+'</span></div>'
+            +'<p style="font-size:.79rem;color:var(--sub)">'+a.summary+'</p></div>';
+        }).join('')
+      : '<p style="color:var(--sub);font-size:.85rem">Nessuna analisi effettuata ancora</p>')
+    +'</div></div>';
+}
+
+function previewAnalysis(input){
+  if(!input.files||!input.files[0])return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=document.getElementById('analysis-img');
+    var prev=document.getElementById('analysis-preview');
+    var ph=document.getElementById('analysis-placeholder');
+    if(img)img.src=e.target.result;
+    if(prev)prev.style.display='';
+    if(ph)ph.style.display='none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+async function analyzeMovement(){
+  var fileInput=document.getElementById('analysis-file');
+  var exSel=(document.getElementById('analysis-exercise')||{}).value;
+  var customEx=((document.getElementById('custom-exercise')||{}).value||'').trim();
+  var notes=((document.getElementById('analysis-notes')||{}).value||'').trim();
+  var exercise=exSel==='custom'?customEx:exSel;
+  var result=document.getElementById('analysis-result');
+  var btn=document.getElementById('btn-analyze');
+  if(!exercise){toast('Seleziona l\'esercizio da analizzare','error');return;}
+  if(!fileInput||!fileInput.files||!fileInput.files.length){toast('Carica prima una foto','error');return;}
+  if(btn){btn.disabled=true;btn.textContent='Analizzando...';}
+  if(result)result.innerHTML='<div style="text-align:center;padding:30px 0;color:var(--sub)"><div style="font-size:1.5rem;margin-bottom:8px">&#129504;</div>Analizzando la tecnica...</div>';
+  try{
+    var file=fileInput.files[0];
+    var base64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+    var mediaType=file.type||'image/jpeg';
+    var pr=SESSION&&SESSION.profile||{};
+    var prompt='Sei un coach di strength & conditioning esperto. Analizza questa foto di '+exercise+(notes?'. Contesto: '+notes:'')
+      +'. Atleta: Livello='+(pr.level||'intermedio')+', Obiettivo='+(pr.goal||'forza')
+      +'. Fornisci: 1) PUNTI DI FORZA 2) AREE DI MIGLIORAMENTO 3) CORREZIONI IMMEDIATE 4) RISCHIO INFORTUNI (basso/medio/alto). Sii specifico e professionale.';
+    var resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    var data=await resp.json();
+    var txt=(data.content||[]).find(function(b){return b.type==='text';})||{text:''};
+    var formatted=txt.text
+      .replace(/1\)\s*PUNTI DI FORZA/gi,'<div style="font-weight:700;color:var(--teal);margin-top:12px;margin-bottom:4px">&#10003; PUNTI DI FORZA</div>')
+      .replace(/2\)\s*AREE DI MIGLIORAMENTO/gi,'<div style="font-weight:700;color:var(--gold);margin-top:12px;margin-bottom:4px">&#9888; AREE DI MIGLIORAMENTO</div>')
+      .replace(/3\)\s*CORREZIONI IMMEDIATE/gi,'<div style="font-weight:700;color:var(--accent);margin-top:12px;margin-bottom:4px">&#128161; CORREZIONI IMMEDIATE</div>')
+      .replace(/4\)\s*RISCHIO INFORTUNI/gi,'<div style="font-weight:700;color:var(--red);margin-top:12px;margin-bottom:4px">&#128680; RISCHIO INFORTUNI</div>')
+      .replace(/\n/g,'<br>');
+    if(result)result.innerHTML='<div style="color:var(--text)">'+formatted+'</div>';
+    SESSION.analysisHistory=SESSION.analysisHistory||[];
+    SESSION.analysisHistory.unshift({exercise:exercise,date:new Date().toISOString(),summary:txt.text.substring(0,120)+'...'});
+    if(SESSION.analysisHistory.length>20)SESSION.analysisHistory=SESSION.analysisHistory.slice(0,20);
+    updateUser(SESSION);saveSession(SESSION);
+  }catch(e){
+    console.error('analyzeMovement:',e);
+    if(result)result.innerHTML='<p style="color:var(--red)">Errore analisi. Verifica che il file sia un\'immagine valida e riprova.</p>';
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='&#129504; Analizza con AI';}
+  }
 }
 
 function previewAnalysisImg(input){
