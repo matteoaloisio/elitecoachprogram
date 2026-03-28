@@ -5868,14 +5868,14 @@ let calMonth = new Date().getMonth();
 function renderDashCalendario(){
   const el = document.getElementById('ds-calendario');
   if(!el) return;
-  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><h2 style="font-family:var(--font2)">&#128198; Calendario Allenamenti</h2></div><div id="cal-container"></div>';
-  buildCalendar(calYear, calMonth);
+  el.innerHTML = '<div style="max-width:700px;margin:0 auto"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><h2 style="font-family:var(--font2)">&#128198; Calendario Allenamenti</h2></div><div id="cal-container"><div style="text-align:center;padding:40px;color:var(--sub)">Caricamento...</div></div></div>';
+  setTimeout(function(){ buildCalendar(calYear, calMonth); }, 50);
 }
 
 function buildCalendar(year, month){
   const log     = SESSION?.log || [];
-  const el      = document.getElementById('cal-container');
-  if(!el) return;
+  const el = document.getElementById('cal-container');
+  if(!el){ setTimeout(function(){ buildCalendar(year,month); },100); return; }
 
   const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                       'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
