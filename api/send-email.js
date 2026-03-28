@@ -3,42 +3,50 @@ module.exports = async (req, res) => {
 
   const { to, template, data } = req.body;
 
+  if (!to || !template) {
+    return res.status(400).json({ error: 'Parametri mancanti' });
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    return res.status(500).json({ error: 'RESEND_API_KEY non configurata su Vercel' });
+  }
+
   const templates = {
-    welcome: {
+    welcome: (d) => ({
       subject: 'Benvenuto in EliteCoachProgram.fit!',
-      html: `<h1>Ciao ${data?.name || ''}!</h1>
-             <p>Il tuo account è attivo. Inizia subito il tuo percorso fitness.</p>
-             <a href="https://elitecoachprogram-fit-mnea.vercel.app">Accedi alla piattaforma</a>`
-    },
-    payment_success: {
-      subject: 'Abbonamento attivato — EliteCoachProgram.fit',
-      html: `<h1>Pagamento ricevuto!</h1>
-             <p>Il tuo piano Pro è attivo. Goditi tutte le funzionalità premium.</p>`
-    },
-    trainer_assigned: {
-      subject: 'Il tuo trainer è pronto!',
-      html: `<h1>${data?.trainerName || 'Il tuo coach'} è pronto</h1>
-             <p>Accedi alla chat per iniziare.</p>`
-    }
+      html: '<h1>Ciao ' + (d && d.name ? d.name : '') + '!</h1><p>Il tuo account e attivo.</p><a href="https://elitecoachprogram-fit-mnea.vercel.app">Accedi</a>'
+    }),
+    payment_success: () => ({
+      subject: 'Abbonamento attivato',
+      html: '<h1>Pagamento ricevuto!</h1><p>Il tuo piano Pro e attivo.</p>'
+    }),
+    trainer_assigned: (d) => ({
+      subject: 'Il tuo trainer e pronto!',
+      html: '<h1>' + (d && d.trainerName ? d.trainerName : 'Il tuo coach') + ' e pronto</h1>'
+    })
   };
 
-  const tmpl = templates[template];
-  if (!tmpl) return res.status(400).json({ error: 'Template non trovato' });
+  const tmplFn = templates[template];
+  if (!tmplFn) return res.status(400).json({ error: 'Template non trovato' });
+  const tmpl = tmplFn(data || {});
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: 'EliteCoach <onboarding@resend.dev>',
-      to: [to],
-      subject: tmpl.subject,
-      html: tmpl.html
-    })
-  });
-
-  const result = await response.json();
-  res.json(result);
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'EliteCoach <onboarding@resend.dev>',
+        to: [to],
+        subject: tmpl.subject,
+        html: tmpl.html
+      })
+    });
+    const result = await response.json();
+    res.status(response.status).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
