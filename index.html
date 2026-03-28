@@ -2466,22 +2466,62 @@ function doRegister(){
   setTimeout(()=>showQuickOnboarding(), 400);
 }
 
-function doLogin(){
-  const email=document.getElementById('log-email').value.trim().toLowerCase();
-  const pass=document.getElementById('log-pass').value;
+async function doLogin(){
+  const email = document.getElementById('log-email')?.value.trim().toLowerCase()||'';
+  const pass  = document.getElementById('log-pass')?.value||'';
   if(!email||!pass){ showAuthError(t('toast_fill')); return; }
-  const user=getUserByEmail(email);
-  if(!user){ showAuthError('Nessun account trovato con questa email'); return; }
-  if(user.pass!==pass){ showAuthError('Password non corretta'); return; }
-  user.lastLogin=new Date().toISOString();
-  updateUser(user);
-  saveSession(user);
-  if(!user.profile||!user.profile.goal){ showPage('pg-onboard'); }
-  else { showPage('pg-dash'); }
+
+  const sb = getSupabase();
+  if(!sb){
+    // Fallback localStorage
+    const user=getUserByEmail(email);
+    if(!user){ showAuthError('Nessun account trovato con questa email'); return; }
+    if(user.pass!==pass){ showAuthError('Password non corretta'); return; }
+    user.lastLogin=new Date().toISOString();
+    updateUser(user); saveSession(user); SESSION=user;
+    if(!user.profile||!user.profile.goal) showPage('pg-onboard');
+    else showPage('pg-dash');
+    return;
+  }
+
+  // ── Login REALE su Supabase ───────────────────────────
+  const btn = document.getElementById('log-btn') || document.querySelector('[onclick*=doLogin]');
+  if(btn){ btn.disabled=true; btn.textContent='Accesso...'; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  if(btn){ btn.disabled=false; btn.textContent='Accedi'; }
+
+  if(error){
+    showAuthError('Credenziali errate. Controlla email e password.'); return;
+  }
+
+  // Carica profilo dal database
+  const { data: profile } = await sb
+    .from('profiles').select('*').eq('id', data.user.id).single();
+
+  if(profile){
+    SESSION = profile;
+    saveSession(SESSION);
+  } else {
+    // Profilo non trovato — crea al volo
+    const newProfile = { id:data.user.id, email:data.user.email,
+      name: data.user.user_metadata?.name||email, plan:'free', role:'user',
+      profile:{}, program:null };
+    await sb.from('profiles').insert(newProfile);
+    SESSION = newProfile;
+    saveSession(SESSION);
+  }
+
+  if(!SESSION.profile||!SESSION.profile.goal) showPage('pg-onboard');
+  else showPage('pg-dash');
 }
 
-function doLogout(){
+async function doLogout(){
+  const sb = getSupabase();
+  if(sb) await sb.auth.signOut();
   clearSession();
+  SESSION = null;
   showPage('pg-land');
   toast('Arrivederci! 👋');
 }
