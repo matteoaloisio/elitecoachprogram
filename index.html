@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<!-- Supabase Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL    = 'https://penbeezfgrorhmgshwnx.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_bxT2zZ9WwvKc9kinmJReEw_5SvrSHU3';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EliteCoachProgram.fit — Il tuo coach AI</title>
@@ -2325,7 +2332,12 @@ function getUsers(){ try{return JSON.parse(localStorage.getItem('ecp_users')||'[
 function saveUsers(u){ localStorage.setItem('ecp_users',JSON.stringify(u)); }
 function getUserByEmail(e){ return getUsers().find(u=>u.email===e.toLowerCase().trim()); }
 function addUser(u){ const arr=getUsers(); arr.push(u); saveUsers(arr); }
-function updateUser(u){ const arr=getUsers(); const i=arr.findIndex(x=>x.email===u.email); if(i>=0)arr[i]=u; saveUsers(arr); }
+function updateUser(u){
+    const arr=getUsers(); const i=arr.findIndex(x=>x.email===u.email);
+    if(i>=0) arr[i]=u; saveUsers(arr);
+    if(SESSION?.id && typeof saveUserData==='function')
+      saveUserData({ profile:u.profile, program:u.program }).catch(console.error);
+  }
 
 function getTrainers(){ try{return JSON.parse(localStorage.getItem('ecp_trainers')||'[]');}catch{return[];} }
 function saveTrainers(t){ localStorage.setItem('ecp_trainers',JSON.stringify(t)); }
@@ -2342,6 +2354,60 @@ function getClientDocs(trEmail, clientEmail){
 
 function loadSession(){ try{return JSON.parse(localStorage.getItem('ecp_session')||'null');}catch{return null;} }
 function saveSession(s){ localStorage.setItem('ecp_session',JSON.stringify(s)); SESSION=s; }
+
+  // ── SUPABASE AUTH REALE ──────────────────────────────────
+  async function signUp(email, password, name){
+    if(!email||!password||!name){ toast('Compila tutti i campi','error'); return; }
+    const { data, error } = await supabase.auth.signUp({
+      email, password, options:{ data:{ name } }
+    });
+    if(error){ toast(error.message,'error'); return; }
+    await supabase.from('profiles').insert({
+      id: data.user.id, email: data.user.email, name: name, plan:'free', role:'user'
+    });
+    toast('Registrazione completata! Controlla la email.','success');
+    return data;
+  }
+
+  async function signIn(email, password){
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error){ toast('Credenziali errate. Riprova.','error'); return null; }
+    const { data: profile } = await supabase
+      .from('profiles').select('*').eq('id', data.user.id).single();
+    if(profile){ SESSION = profile; saveSession(SESSION); }
+    return profile;
+  }
+
+  async function signOut(){
+    await supabase.auth.signOut();
+    SESSION = null;
+    localStorage.removeItem('ecp_session');
+    showPage('pg-land');
+  }
+
+  async function saveUserData(updatedData){
+    if(!SESSION?.id) return;
+    const { error } = await supabase.from('profiles').update({
+      profile:    updatedData.profile    ?? SESSION.profile,
+      program:    updatedData.program    ?? SESSION.program,
+      updated_at: new Date().toISOString()
+    }).eq('id', SESSION.id);
+    if(!error){ SESSION = { ...SESSION, ...updatedData }; saveSession(SESSION); }
+    else console.error('saveUserData error:', error);
+  }
+
+  async function initApp(){
+    const { data:{ session } } = await supabase.auth.getSession();
+    if(session){
+      const { data: profile } = await supabase
+        .from('profiles').select('*').eq('id', session.user.id).single();
+      if(profile){ SESSION = profile; saveSession(SESSION); }
+    }
+    supabase.auth.onAuthStateChange((event) => {
+      if(event === 'SIGNED_OUT'){ SESSION = null; }
+    });
+  }
+  // ────────────────────────────────────────────────────────
 function clearSession(){ localStorage.removeItem('ecp_session'); SESSION=null; }
 function loadTrainerSession(){ try{return JSON.parse(localStorage.getItem('ecp_tr_session')||'null');}catch{return null;} }
 function saveTrainerSession(s){ localStorage.setItem('ecp_tr_session',JSON.stringify(s)); TR_SESSION=s; }
@@ -9873,6 +9939,7 @@ addEventListener('DOMContentLoaded', ()=>{
   // Session check
   SESSION=loadSession();
   TR_SESSION=loadTrainerSession();
+  if(typeof initApp==='function') initApp().catch(console.error);
   
   // Init exercises PRIMA di setLang
   initExercises();
