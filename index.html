@@ -4849,11 +4849,19 @@ async function generateAIProgram(){
 
 function buildSmartFallback(p){
   const goal     = (p.goal||'Ipertrofia').toLowerCase();
-  const sessions = parseInt(p.sessions)||4;
-  const sex      = (p.sex||'M').toUpperCase();
+  // sessions: può venire da p.freq (es. "3 giorni") o p.sessions (numero)
+  const freqRaw  = p.freq||p.sessions||'4';
+  const sessions = Math.min(parseInt(freqRaw)||4, 6);
+  const sex      = (p.sex||'M')[0].toUpperCase();
   const level    = p.level||'Intermedio';
-  const eq       = (p.equipment||'palestra completa').toLowerCase();
-  const bw       = eq.includes('corpo libero')||eq.includes('casa senza');
+  // equipment: può essere array (checkbox) o stringa
+  const eqArr    = Array.isArray(p.equipment) ? p.equipment
+                 : Array.isArray(p.gym) ? p.gym
+                 : [p.equipment||p.gym||'palestra completa'];
+  const gymArr   = Array.isArray(p.gym) ? p.gym : (p.gym ? [p.gym] : []);
+  const allEquip = [...new Set([...eqArr,...gymArr])];
+  const eq       = allEquip.join(' ').toLowerCase()||'palestra completa';
+  const bw       = eq.includes('corpo libero')||eq.includes('casa senza')||eq.includes('solo corpo');
 
   // ── Esercizi base per attrezzatura ─────────────────────
   const SQ  = bw?{name:'Squat corpo libero',sets:4,reps:'15-20',rest:60,notes:'Scendi sotto il parallelo',technique:'normale'}:{name:'Squat Bilanciere',sets:4,reps:'8-10',rest:120,notes:'Schiena dritta, scendi sotto parallelo',load_tip:'70-75% 1RM',technique:'normale',progression:'Aggiungi 2.5kg ogni 2 sessioni'};
