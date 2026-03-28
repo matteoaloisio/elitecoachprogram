@@ -2397,15 +2397,22 @@ function saveSession(s){ localStorage.setItem('ecp_session',JSON.stringify(s)); 
   }
 
   async function initApp(){
-    const { data:{ session } } = await supabase.auth.getSession();
-    if(session){
-      const { data: profile } = await supabase
-        .from('profiles').select('*').eq('id', session.user.id).single();
-      if(profile){ SESSION = profile; saveSession(SESSION); }
+    // Guard: aspetta che supabase sia disponibile
+    if(typeof supabase === 'undefined' || !supabase?.auth){
+      console.warn('Supabase non ancora caricato — skip initApp');
+      return;
     }
-    supabase.auth.onAuthStateChange((event) => {
-      if(event === 'SIGNED_OUT'){ SESSION = null; }
-    });
+    try{
+      const { data:{ session } } = await supabase.auth.getSession();
+      if(session){
+        const { data: profile } = await supabase
+          .from('profiles').select('*').eq('id', session.user.id).single();
+        if(profile){ SESSION = profile; saveSession(SESSION); }
+      }
+      supabase.auth.onAuthStateChange((event) => {
+        if(event === 'SIGNED_OUT'){ SESSION = null; }
+      });
+    }catch(e){ console.warn('initApp error:', e.message); }
   }
   // ────────────────────────────────────────────────────────
 function clearSession(){ localStorage.removeItem('ecp_session'); SESSION=null; }
@@ -5066,6 +5073,7 @@ function renderDashSec(sec){
 }
 
 function renderDashHome(){
+  if(!SESSION){ showPage('pg-land'); return; }  // guardia: SESSION null
   const u=SESSION;
   const streak=u.streak||0;
   const today=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
@@ -9805,9 +9813,10 @@ function renderDashAICoach(){
 }
 
 // Also add to Home dashboard quick actions
-const _origRenderDashHome = renderDashHome;
+const _origRenderDashHome = (typeof renderDashHome === 'function' && !renderDashHome._wrapped)
+  ? renderDashHome : null;
 function renderDashHome(){
-  _origRenderDashHome();
+  if(_origRenderDashHome) _origRenderDashHome();
   // Inject notification button in hero area
   const homeEl = document.getElementById('ds-home');
   if(!homeEl) return;
@@ -9939,7 +9948,10 @@ addEventListener('DOMContentLoaded', ()=>{
   // Session check
   SESSION=loadSession();
   TR_SESSION=loadTrainerSession();
-  if(typeof initApp==='function') initApp().catch(console.error);
+  // Aspetta Supabase CDN prima di initApp
+  setTimeout(function(){
+    if(typeof initApp==='function') initApp().catch(console.error);
+  }, 100);
   
   // Init exercises PRIMA di setLang
   initExercises();
