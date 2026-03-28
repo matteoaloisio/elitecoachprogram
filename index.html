@@ -376,9 +376,10 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
 .dash-sidebar-item:hover{background:var(--bg3);color:var(--text)}
 .dash-sidebar-item.act{background:rgba(91,94,244,.12);color:var(--accent-xl);font-weight:500}
 .dash-sidebar-item .ico{font-size:14px;flex-shrink:0;width:18px;text-align:center}
-.dash-main{flex:1;padding:26px;margin-left:220px;min-width:0;overflow-x:hidden}
+.dash-main{flex:1;padding:28px 32px 28px 252px;margin-left:0;min-width:0;overflow-x:hidden;box-sizing:border-box}
 .dash-section{display:none}
 .dash-section.act{display:block}
+@media(max-width:768px){.dash-sidebar{transform:translateX(-100%);transition:.3s}.dash-sidebar.open{transform:translateX(0)}.dash-main{padding:16px !important}}
 
 .trainer-sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);
   padding:14px 10px;position:fixed;top:var(--nav-h);left:0;
@@ -11185,7 +11186,8 @@ function renderDashAnalysis(){
   var el=document.getElementById('ds-analysis');
   if(!el)return;
   el.innerHTML=
-    '<h2 style="font-family:var(--font2);margin-bottom:4px">&#127909; Analisi Movimento AI</h2>'
+    '<div style="max-width:1100px">'
+    +'<h2 style="font-family:var(--font2);margin-bottom:4px">&#127909; Analisi Movimento AI</h2>'
     +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:20px">Carica una foto del tuo esercizio — AI analizza postura, tecnica e ti fornisce feedback professionale</p>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px">'
 
@@ -11227,7 +11229,7 @@ function renderDashAnalysis(){
             +'<p style="font-size:.79rem;color:var(--sub)">'+a.summary+'</p></div>';
         }).join('')
       : '<p style="color:var(--sub);font-size:.85rem">Nessuna analisi effettuata ancora</p>')
-    +'</div></div>';
+    +'</div></div></div>';
 }
 
 function previewAnalysis(input){
