@@ -2404,22 +2404,25 @@ function saveSession(s){ localStorage.setItem('ecp_session',JSON.stringify(s)); 
   }
 
   async function initApp(){
-    // Guard: aspetta che supabase sia disponibile
-    if(getSupabase() === 'undefined' || !supabase?.auth){
-      console.warn('Supabase non ancora caricato — skip initApp');
+    const sb = getSupabase();
+    if(!sb){
+      // CDN non ancora pronto — riprova tra 300ms
+      setTimeout(initApp, 300);
       return;
     }
     try{
-      const { data:{ session } } = await getSupabase().auth.getSession();
+      const { data:{ session } } = await sb.auth.getSession();
       if(session){
-        const { data: profile } = await supabase
+        const { data: profile } = await sb
           .from('profiles').select('*').eq('id', session.user.id).single();
         if(profile){ SESSION = profile; saveSession(SESSION); }
       }
-      getSupabase().auth.onAuthStateChange((event) => {
+      sb.auth.onAuthStateChange(function(event){
         if(event === 'SIGNED_OUT'){ SESSION = null; }
       });
-    }catch(e){ console.warn('initApp error:', e.message); }
+    } catch(e){
+      console.warn('initApp error:', e.message);
+    }
   }
   // ────────────────────────────────────────────────────────
 function clearSession(){ localStorage.removeItem('ecp_session'); SESSION=null; }
@@ -9957,9 +9960,10 @@ addEventListener('DOMContentLoaded', ()=>{
   SESSION=loadSession();
   TR_SESSION=loadTrainerSession();
   // Aspetta Supabase CDN prima di initApp
+  // initApp si auto-riavvia se Supabase CDN non è ancora pronto
   setTimeout(function(){
     if(typeof initApp==='function') initApp().catch(console.error);
-  }, 100);
+  }, 500);
   
   // Init exercises PRIMA di setLang
   initExercises();
