@@ -623,6 +623,16 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
   .lb{font-size:.7rem;padding:2px 4px}
   .btn-nav{padding:6px 12px;font-size:12px}
 }
+
+  /* Timer preset buttons */
+  .wt-preset.active {
+    background: rgba(15,214,194,.15) !important;
+    border-color: var(--teal) !important;
+    color: var(--teal) !important;
+  }
+
+  .wt-tab { transition: all .15s !important; }
+  .wt-tab:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
 </style>
 
 
@@ -1388,6 +1398,36 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
   <div class="modal" style="max-width:420px">
     <div class="modal-hd"><h3 id="wt-title">⏱ Timer WOD</h3><button class="modal-close" onclick="closeModal('wod-timer-modal')">✕</button></div>
     <div class="wod-timer">
+      <!-- Selezione tipo timer per categoria -->
+      <div id="wt-type-tabs" style="margin-bottom:12px">
+        <!-- Categoria Base -->
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;padding-left:2px">Base</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+          <button onclick="openWODTimer('normale')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">⏱ Riposo</button>
+          <button onclick="openWODTimer('countdown')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">⏳ Countdown</button>
+          <button onclick="openWODTimer('circuit')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🔁 Circuit</button>
+        </div>
+        <!-- CrossFit WOD -->
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;padding-left:2px">CrossFit WOD</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+          <button onclick="openWODTimer('amrap')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🔄 AMRAP</button>
+          <button onclick="openWODTimer('emom')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">⏰ EMOM</button>
+          <button onclick="openWODTimer('tabata')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">⚡ Tabata</button>
+          <button onclick="openWODTimer('fortime')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🏁 For Time</button>
+          <button onclick="openWODTimer('chipper')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">📋 Chipper</button>
+          <button onclick="openWODTimer('hero')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🦸 Hero WOD</button>
+        </div>
+        <!-- Tecniche d'intensità -->
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;padding-left:2px">Tecniche d&apos;intensità</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">
+          <button onclick="openWODTimer('superset')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🔗 Superset</button>
+          <button onclick="openWODTimer('giant')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">💪 Giant Set</button>
+          <button onclick="openWODTimer('drop set')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">📉 Drop Set</button>
+          <button onclick="openWODTimer('rest-pause')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">⏸ Rest-Pause</button>
+          <button onclick="openWODTimer('cluster')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🎯 Cluster</button>
+          <button onclick="openWODTimer('myo')" class="wt-tab btn btn-ghost btn-xs" style="border-radius:50px;font-size:.75rem">🔥 Myo-Rep</button>
+        </div>
+      </div>
       <div class="wod-timer-label" id="wt-label">WORK</div>
       <div class="wod-timer-display" id="wt-display">00:00</div>
       <div class="wod-timer-phase" id="wt-phase"></div>
@@ -7370,35 +7410,187 @@ function hireTrainer(email){
 let wodInterval=null;
 let wodCfg={type:'tabata',work:20,rest:10,rounds:8,time:0,round:0,phase:'work',running:false};
 
-function openWODTimer(type){
-  wodCfg.type=type||'tabata';
-  wodCfg.running=false;
+function openWODTimer(type, restSecs){
+  wodCfg.type = type||'normale';
+  wodCfg.running = false;
   if(wodInterval) clearInterval(wodInterval);
-  const modal=document.getElementById('wod-timer-modal');
-  const title=document.getElementById('wt-title');
-  const cfg=document.getElementById('wt-cfg');
-  const names={'tabata':'⏱ Tabata','amrap':'⏱ AMRAP','emom':'⏱ EMOM',
-    'circuit':'⏱ Circuito','superset':'⏱ Superset','normale':'⏱ Timer riposo',
-    'rest-pause':'⏱ Rest-Pause','drop set':'⏱ Drop Set'};
-  if(title) title.textContent=names[type]||'⏱ Timer';
+  const modal = document.getElementById('wod-timer-modal');
+  const title = document.getElementById('wt-title');
+  const cfg   = document.getElementById('wt-cfg');
+  const lbl   = document.getElementById('wt-label');
+
+  const names = {
+    'normale'   : '⏱ Timer Riposo',
+    'tabata'    : '⚡ Tabata',
+    'amrap'     : '🔄 AMRAP',
+    'emom'      : '⏰ EMOM',
+    'fortime'   : '🏁 For Time',
+    'chipper'   : '📋 Chipper',
+    'superset'  : '🔗 Superset',
+    'drop set'  : '📉 Drop Set',
+    'rest-pause': '⏸ Rest-Pause',
+    'circuit'   : '🔁 Circuito',
+    'hero'      : '🦸 Hero WOD',
+    'countdown' : '⏳ Countdown',
+  };
+  if(title) title.textContent = names[type] || '⏱ Timer';
+  if(lbl)   lbl.textContent   = type === 'tabata' ? 'WORK' : type === 'fortime' ? 'ELAPSED' : 'RIPOSO';
+
   if(cfg){
-    if(type==='tabata') cfg.innerHTML=`
-      <div class="field"><label>Work (s)</label><input class="inp" id="wt-work" value="20" type="number" min="5" onchange="updateWODCfg()"></div>
-      <div class="field"><label>Rest (s)</label><input class="inp" id="wt-rest-cfg" value="10" type="number" min="5" onchange="updateWODCfg()"></div>
-      <div class="field"><label>Rounds</label><input class="inp" id="wt-rounds" value="8" type="number" min="1" onchange="updateWODCfg()"></div>
-      <div class="field"><label>Totale</label><input class="inp" value="${(20+10)*8}s" readonly style="opacity:.5"></div>`;
-    else if(type==='amrap') cfg.innerHTML=`
-      <div class="field"><label>Durata (min)</label><input class="inp" id="wt-amrap" value="10" type="number" min="1" onchange="updateWODCfg()"></div>
-      <div style="grid-column:1/-1"><p style="font-size:.82rem;color:var(--sub)">Completa quante più ripetizioni/round possibile nel tempo</p></div>`;
-    else if(type==='emom') cfg.innerHTML=`
-      <div class="field"><label>Durata (min)</label><input class="inp" id="wt-emom" value="10" type="number" min="1" onchange="updateWODCfg()"></div>
-      <div class="field"><label>Intervallo (s)</label><input class="inp" id="wt-emom-int" value="60" type="number" min="30" onchange="updateWODCfg()"></div>`;
-    else cfg.innerHTML=`
-      <div class="field"><label>Riposo (s)</label><input class="inp" id="wt-simple" value="90" type="number" min="10" onchange="updateWODCfg()"></div>`;
+    const PRESET_TIMES = [30,45,60,75,90,120,150];
+
+    // ── Helper: bottoni preset riposo ─────────────────────
+    const presetBtns = PRESET_TIMES.map(s=>{
+      const lbl = s<60?s+'s':s===60?'1 min':s===90?'1:30':s===120?'2 min':s===150?'2:30':s+'s';
+      return `<button onclick="document.getElementById('wt-simple').value=${s};updateWODCfg();document.querySelectorAll('.wt-preset').forEach(b=>b.classList.remove('active'));this.classList.add('active')" class="wt-preset" style="padding:6px 12px;border-radius:50px;border:1.5px solid var(--border);background:var(--bg2);color:var(--sub);font-size:.8rem;font-weight:600;cursor:pointer;transition:.15s" onmouseenter="if(!this.classList.contains('active'))this.style.borderColor='var(--teal)'" onmouseleave="if(!this.classList.contains('active'))this.style.borderColor='var(--border)'">${lbl}</button>`;
+    }).join('');
+
+    if(type==='tabata'){
+      cfg.innerHTML=`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">⚡ Work (s)</label>
+            <input class="inp" id="wt-work" value="20" type="number" min="5" max="60"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">😮‍💨 Rest (s)</label>
+            <input class="inp" id="wt-rest-cfg" value="10" type="number" min="5" max="60"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">🔄 Rounds</label>
+            <input class="inp" id="wt-rounds" value="8" type="number" min="1" max="20"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">⏱ Totale</label>
+            <input class="inp" id="wt-total" value="4:00" readonly
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px;opacity:.5"></div>
+        </div>
+        <p style="font-size:.78rem;color:var(--sub);text-align:center;margin-top:4px;grid-column:1/-1">
+          20s on / 10s off × 8 round = 4 minuti classici
+        </p>`;
+    }
+    else if(type==='amrap'){
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:8px">⏱ Durata (minuti)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:12px">
+            ${[5,8,10,12,15,20,25].map(m=>`<button onclick="document.getElementById('wt-amrap').value=${m};updateWODCfg();document.querySelectorAll('.wt-amrap-p').forEach(b=>b.classList.remove('active'));this.classList.add('active')" class="wt-amrap-p wt-preset" style="padding:6px 14px;border-radius:50px;border:1.5px solid var(--border);background:var(--bg2);color:var(--sub);font-size:.82rem;font-weight:600;cursor:pointer;transition:.15s">${m}</button>`).join('')}
+          </div>
+          <input class="inp" id="wt-amrap" value="10" type="number" min="1" max="60"
+            style="max-width:100px;text-align:center;font-size:1.3rem;font-weight:700;border-radius:50px;margin:0 auto;display:block" onchange="updateWODCfg()">
+          <p style="font-size:.78rem;color:var(--sub);margin-top:10px">
+            Completa più round possibili nel tempo. Registra il totale.
+          </p>
+        </div>`;
+    }
+    else if(type==='emom'){
+      cfg.innerHTML=`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">⏱ Durata (min)</label>
+            <input class="inp" id="wt-emom" value="10" type="number" min="1" max="60"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">🔄 Ogni (s)</label>
+            <input class="inp" id="wt-emom-int" value="60" type="number" min="20" max="120"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+        </div>
+        <p style="font-size:.78rem;color:var(--sub);text-align:center;margin-top:4px">
+          Esegui il movimento all'inizio di ogni minuto. Il riposo è il tempo rimanente.
+        </p>`;
+    }
+    else if(type==='superset'){
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <div style="font-size:.78rem;color:var(--sub);background:rgba(91,94,244,.08);border:1px solid rgba(91,94,244,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;text-align:left">
+            <strong style="color:var(--accent)">Superset</strong> — 2 esercizi consecutivi senza pausa tra loro.<br>
+            Riposa solo alla fine del secondo esercizio.
+          </div>
+          <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:8px">Riposo tra i superset</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:12px">${presetBtns}</div>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+            <input class="inp" id="wt-simple" value="90" type="number" min="5"
+              style="max-width:90px;text-align:center;font-weight:700;border-radius:50px" onchange="updateWODCfg()">
+            <span style="color:var(--sub);font-size:.85rem">secondi</span>
+          </div>
+        </div>`;
+    }
+    else if(type==='drop set'){
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <div style="font-size:.78rem;color:var(--sub);background:rgba(245,200,66,.06);border:1px solid rgba(245,200,66,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;text-align:left">
+            <strong style="color:var(--gold)">Drop Set</strong> — Raggiungi l'esaurimento, riduci il peso 20-30% e continua subito senza pausa.<br>
+            Il timer conta il tuo set totale.
+          </div>
+          <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:8px">Riposo dopo il drop set completo</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:12px">${presetBtns}</div>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+            <input class="inp" id="wt-simple" value="120" type="number" min="5"
+              style="max-width:90px;text-align:center;font-weight:700;border-radius:50px" onchange="updateWODCfg()">
+            <span style="color:var(--sub);font-size:.85rem">secondi</span>
+          </div>
+        </div>`;
+    }
+    else if(type==='rest-pause'){
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <div style="font-size:.78rem;color:var(--sub);background:rgba(15,214,194,.06);border:1px solid rgba(15,214,194,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;text-align:left">
+            <strong style="color:var(--teal)">Rest-Pause</strong> — Raggiungi il cedimento, pausa 15s, poi continua per 3-5 reps extra.<br>
+            Massimizza il volume efficace in meno tempo.
+          </div>
+          <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:8px">Micro-pausa rest-pause</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:12px">
+            ${[10,15,20,25,30].map(s=>`<button onclick="document.getElementById('wt-simple').value=${s};updateWODCfg();document.querySelectorAll('.wt-preset').forEach(b=>b.classList.remove('active'));this.classList.add('active')" class="wt-preset" style="padding:6px 12px;border-radius:50px;border:1.5px solid var(--border);background:var(--bg2);color:var(--sub);font-size:.8rem;font-weight:600;cursor:pointer;transition:.15s">${s}s</button>`).join('')}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+            <input class="inp" id="wt-simple" value="15" type="number" min="5"
+              style="max-width:90px;text-align:center;font-weight:700;border-radius:50px" onchange="updateWODCfg()">
+            <span style="color:var(--sub);font-size:.85rem">secondi</span>
+          </div>
+        </div>`;
+    }
+    else if(type==='circuit'){
+      cfg.innerHTML=`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">🔄 Rounds</label>
+            <input class="inp" id="wt-rounds" value="3" type="number" min="1" max="10"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+          <div class="field"><label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub)">😮‍💨 Riposo tra round</label>
+            <input class="inp" id="wt-simple" value="90" type="number" min="10"
+              style="text-align:center;font-size:1.1rem;font-weight:700;border-radius:50px" onchange="updateWODCfg()"></div>
+        </div>
+        <p style="font-size:.78rem;color:var(--sub);text-align:center;margin-top:4px">
+          Esegui tutti gli esercizi in sequenza con riposo minimo. Pausa solo tra i round.
+        </p>`;
+    }
+    else if(type==='ForTime'||type==='for time'){
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <div style="font-size:.78rem;color:var(--sub);background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;text-align:left">
+            <strong style="color:var(--red)">For Time</strong> — Completa il lavoro nel minor tempo possibile.<br>
+            Il timer conta in avanti. Fermalo quando finisci.
+          </div>
+          <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);display:block;margin-bottom:8px">Time cap (minuti)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:12px">
+            ${[10,15,20,25,30,40].map(m=>`<button onclick="document.getElementById('wt-amrap').value=${m};updateWODCfg();document.querySelectorAll('.wt-preset').forEach(b=>b.classList.remove('active'));this.classList.add('active')" class="wt-preset" style="padding:6px 14px;border-radius:50px;border:1.5px solid var(--border);background:var(--bg2);color:var(--sub);font-size:.82rem;font-weight:600;cursor:pointer;transition:.15s">${m} min</button>`).join('')}
+          </div>
+          <input class="inp" id="wt-amrap" value="20" type="number" min="1" max="60"
+            style="max-width:100px;text-align:center;font-size:1.3rem;font-weight:700;border-radius:50px;margin:0 auto;display:block" onchange="updateWODCfg()">
+        </div>`;
+    }
+    else {
+      // Timer riposo normale con preset
+      cfg.innerHTML=`
+        <div style="text-align:center;width:100%">
+          <label style="display:block;font-size:.72rem;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Riposo preimpostato</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:14px">${presetBtns}</div>
+          <label style="display:block;font-size:.72rem;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Oppure inserisci manualmente</label>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+            <input class="inp" id="wt-simple" value="90" type="number" min="5" max="600"
+              style="max-width:100px;border-radius:50px;text-align:center;font-size:1rem;font-weight:600" onchange="updateWODCfg()">
+            <span style="color:var(--sub);font-size:.85rem">secondi</span>
+          </div>
+        </div>`;
+    }
   }
   updateWODDisplay();
   openModal('wod-timer-modal');
 }
+
 
 function updateWODCfg(){
   const type=wodCfg.type;
@@ -7406,22 +7598,49 @@ function updateWODCfg(){
     wodCfg.work=parseInt(document.getElementById('wt-work')?.value||20);
     wodCfg.rest=parseInt(document.getElementById('wt-rest-cfg')?.value||10);
     wodCfg.rounds=parseInt(document.getElementById('wt-rounds')?.value||8);
-  } else if(type==='amrap'){ wodCfg.time=parseInt(document.getElementById('wt-amrap')?.value||10)*60; }
-  else if(type==='emom'){ wodCfg.time=parseInt(document.getElementById('wt-emom')?.value||10)*60; wodCfg.work=parseInt(document.getElementById('wt-emom-int')?.value||60); }
-  else { wodCfg.rest=parseInt(document.getElementById('wt-simple')?.value||90); }
+    const tot=document.getElementById('wt-tabata-total');
+    if(tot) tot.value=(wodCfg.work+wodCfg.rest)*wodCfg.rounds+'s';
+  } else if(type==='amrap'){
+    wodCfg.time=parseInt(document.getElementById('wt-amrap')?.value||10)*60;
+  } else if(type==='emom'){
+    wodCfg.time=parseInt(document.getElementById('wt-emom')?.value||10)*60;
+    wodCfg.work=parseInt(document.getElementById('wt-emom-int')?.value||60);
+  } else if(type==='fortime'||type==='chipper'||type==='hero'){
+    wodCfg.time=parseInt(document.getElementById('wt-cap')?.value||20)*60;
+  } else {
+    wodCfg.rest=parseInt(document.getElementById('wt-simple')?.value||90);
+  }
   updateWODDisplay();
 }
 
 function updateWODDisplay(){
   const type=wodCfg.type;
   let secs=0;
-  if(type==='tabata') secs=wodCfg.phase==='work'?wodCfg.work:wodCfg.rest;
-  else if(type==='amrap'||type==='emom') secs=wodCfg.time||600;
-  else secs=wodCfg.rest||90;
+  const lbl=document.getElementById('wt-label');
+  const ph=document.getElementById('wt-phase');
+  if(type==='tabata'){
+    secs=wodCfg.phase==='work'?wodCfg.work:wodCfg.rest;
+    if(lbl) lbl.textContent=wodCfg.phase==='work'?'WORK':'REST';
+    if(ph)  ph.textContent=`Round ${(wodCfg.round||0)+1}/${wodCfg.rounds||8}`;
+  } else if(type==='amrap'){
+    secs=wodCfg.time||600;
+    if(lbl) lbl.textContent='AMRAP';
+    if(ph)  ph.textContent='Quanti round riesci a fare?';
+  } else if(type==='emom'){
+    secs=wodCfg.work||60;
+    if(lbl) lbl.textContent='EMOM';
+    if(ph)  ph.textContent='Ogni minuto on the minute';
+  } else if(type==='fortime'||type==='chipper'||type==='hero'){
+    secs=0; // cronometro in salita
+    if(lbl) lbl.textContent='ELAPSED';
+    if(ph)  ph.textContent='TIME CAP: '+(wodCfg.time?Math.floor(wodCfg.time/60)+'min':'20min');
+  } else {
+    secs=wodCfg.rest||90;
+    if(lbl) lbl.textContent='RIPOSO';
+    if(ph)  ph.textContent='';
+  }
   const d=document.getElementById('wt-display');
-  const p=document.getElementById('wt-phase');
   if(d) d.textContent=formatSecs(secs);
-  if(p) p.textContent=type==='tabata'?`Round ${wodCfg.round+1}/${wodCfg.rounds} — ${wodCfg.phase.toUpperCase()}`:'';
 }
 
 function formatSecs(s){ return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` }
@@ -7434,32 +7653,88 @@ function wodTimerStart(){
   const type=wodCfg.type;
   wodCfg.running=true;
   document.getElementById('wt-start-btn').textContent='⏸ Pausa';
-  let totalSecs;
+  const d=document.getElementById('wt-display');
+
   if(type==='tabata'){
-    totalSecs=wodCfg.phase==='work'?wodCfg.work:wodCfg.rest;
-    const d=document.getElementById('wt-display');
+    let t=wodCfg.phase==='work'?wodCfg.work:wodCfg.rest;
     if(d) d.className='wod-timer-display '+(wodCfg.phase==='rest'?'rest':'');
-  } else {
-    totalSecs=wodCfg.time||parseInt(document.getElementById('wt-simple')?.value||90);
-  }
-  let t=totalSecs;
-  if(wodInterval) clearInterval(wodInterval);
-  wodInterval=setInterval(()=>{
-    t--;
-    const d=document.getElementById('wt-display');
-    if(d){ d.textContent=formatSecs(t); if(t<=5&&t>0) d.style.color='var(--gold)'; else d.style.color=''; }
-    if(t<=0){
-      clearInterval(wodInterval); wodCfg.running=false;
-      if(type==='tabata'){
-        if(wodCfg.phase==='work'){ wodCfg.phase='rest'; }
-        else { wodCfg.round++; wodCfg.phase='work'; }
-        if(wodCfg.round>=wodCfg.rounds){ toast('🏁 Tabata completato!','success'); return; }
+    if(wodInterval) clearInterval(wodInterval);
+    wodInterval=setInterval(()=>{
+      t--;
+      if(d){ d.textContent=formatSecs(t); d.style.color=t<=5&&t>0?'var(--gold)':''; }
+      if(t<=0){
+        clearInterval(wodInterval); wodCfg.running=false;
+        if(wodCfg.phase==='work') wodCfg.phase='rest';
+        else { wodCfg.round=(wodCfg.round||0)+1; wodCfg.phase='work'; }
+        if(wodCfg.round>=(wodCfg.rounds||8)){
+          toast('🏁 Tabata completato! '+wodCfg.rounds+' round','success'); return;
+        }
         updateWODDisplay();
-        const btn=document.getElementById('wt-start-btn'); if(btn) btn.textContent='▶ Start';
-      } else { toast('⏱ Timer completato!','success'); }
-    }
-  },1000);
+        const lbl=document.getElementById('wt-label');
+        if(lbl) lbl.textContent=wodCfg.phase==='work'?'WORK':'REST';
+        document.getElementById('wt-start-btn').textContent='▶ Start';
+      }
+    },1000);
+  }
+  else if(type==='fortime'||type==='chipper'||type==='hero'){
+    // Cronometro in SALITA con time cap
+    let elapsed=0;
+    const cap=wodCfg.time||1200;
+    if(d) d.className='wod-timer-display';
+    if(wodInterval) clearInterval(wodInterval);
+    wodInterval=setInterval(()=>{
+      elapsed++;
+      if(d){ d.textContent=formatSecs(elapsed); d.style.color=elapsed>=(cap-30)&&elapsed<cap?'var(--gold)':''; }
+      if(elapsed>=cap){
+        clearInterval(wodInterval); wodCfg.running=false;
+        if(d) d.style.color='var(--red)';
+        toast('⏱ TIME CAP raggiunto!','error');
+        document.getElementById('wt-start-btn').textContent='▶ Start';
+      }
+    },1000);
+  }
+  else if(type==='emom'){
+    let total=wodCfg.time||600;
+    let minuteTimer=wodCfg.work||60;
+    let elapsed=0; let minCount=0;
+    if(d) d.className='wod-timer-display';
+    if(wodInterval) clearInterval(wodInterval);
+    wodInterval=setInterval(()=>{
+      elapsed++; minuteTimer--;
+      if(d){ d.textContent=formatSecs(total-elapsed); d.style.color=minuteTimer<=5&&minuteTimer>0?'var(--gold)':''; }
+      if(minuteTimer<=0){
+        minCount++; minuteTimer=wodCfg.work||60;
+        const ph=document.getElementById('wt-phase');
+        if(ph) ph.textContent='Minuto '+minCount+' — GO!';
+        if(d) d.style.color='var(--teal)';
+        setTimeout(()=>{ if(d) d.style.color=''; },500);
+      }
+      if(elapsed>=total){
+        clearInterval(wodInterval); wodCfg.running=false;
+        toast('🏁 EMOM completato! '+minCount+' minuti','success');
+        document.getElementById('wt-start-btn').textContent='▶ Start';
+      }
+    },1000);
+  }
+  else {
+    // Timer countdown normale (riposo, superset, drop set, amrap)
+    let totalSecs = (type==='amrap') ? (wodCfg.time||600)
+                  : parseInt(document.getElementById('wt-simple')?.value||90);
+    let t=totalSecs;
+    if(d) d.className='wod-timer-display';
+    if(wodInterval) clearInterval(wodInterval);
+    wodInterval=setInterval(()=>{
+      t--;
+      if(d){ d.textContent=formatSecs(t); d.style.color=t<=5&&t>0?'var(--gold)':''; }
+      if(t<=0){
+        clearInterval(wodInterval); wodCfg.running=false;
+        toast('⏱ '+(type==='amrap'?'AMRAP terminato!':'Riposo completato!'),'success');
+        document.getElementById('wt-start-btn').textContent='▶ Start';
+      }
+    },1000);
+  }
 }
+
 function wodTimerPause(){ wodCfg.running=false; clearInterval(wodInterval); const b=document.getElementById('wt-start-btn'); if(b)b.textContent='▶ Continua'; }
 function wodTimerReset(){ clearInterval(wodInterval); wodCfg={...wodCfg,running:false,round:0,phase:'work'}; updateWODDisplay(); const b=document.getElementById('wt-start-btn'); if(b)b.textContent='▶ Start'; }
 function wodTimerSkip(){ if(wodInterval) clearInterval(wodInterval); wodCfg.running=false; const b=document.getElementById('wt-start-btn'); if(b)b.textContent='▶ Start'; }
