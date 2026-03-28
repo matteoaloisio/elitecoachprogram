@@ -4440,26 +4440,26 @@ function startFullOnb(){
 // ─── ONBOARDING ───────────────────────────────────────────
 const ONBOARD_STEPS = [
   { id:'obj', title:'Obiettivo & Livello', fields:[
-    {type:'select',label:'Obiettivo principale',key:'goal',options:['Dimagrimento','Ipertrofia','Forza','Atletismo','Benessere generale','Powerlifting','Riabilitazione','Ricomposizione corporea','Fitness femminile','Glutei e Gambe','Post-parto e Recupero','Cardio e Resistenza aerobica','HIIT e Fat burning','CrossFit e WOD','Flessibilita e Mobilita','Endurance sportiva','Triathlon','Calistenia']},
+    {type:'select',label:'Obiettivo principale *',key:'goal',required:true,options:['Dimagrimento','Ipertrofia','Forza','Atletismo','Benessere generale','Powerlifting','Riabilitazione','Ricomposizione corporea','Fitness femminile','Glutei e Gambe','Post-parto e Recupero','Cardio e Resistenza aerobica','HIIT e Fat burning','CrossFit e WOD','Flessibilita e Mobilita','Endurance sportiva','Triathlon','Calistenia']},
     {type:'select',label:'Obiettivo secondario',key:'goal2',options:['Nessuno','Migliorare mobilita','Prevenire infortuni','Aumentare stamina','Migliorare postura','Ridurre dolori cronici','Aumentare massa']},
-    {type:'select',label:'Livello',key:'level',options:['Principiante (0-1 anno)','Intermedio (1-3 anni)','Avanzato (3+ anni)','Atleta agonista']},
-    {type:'select',label:'Frequenza allenamenti/settimana',key:'freq',options:['2 giorni','3 giorni','4 giorni','5 giorni','6 giorni','Ogni giorno']},
-    {type:'select',label:'Durata sessione disponibile',key:'session_duration',options:['30-45 minuti','45-60 minuti','60-90 minuti','90-120 minuti','120+ minuti']},
+    {type:'select',label:'Livello *',key:'level',required:true,options:['Principiante (0-1 anno)','Intermedio (1-3 anni)','Avanzato (3+ anni)','Atleta agonista']},
+    {type:'select',label:'Frequenza allenamenti/settimana *',key:'freq',required:true,options:['2 giorni','3 giorni','4 giorni','5 giorni','6 giorni','Ogni giorno']},
+    {type:'select',label:'Durata sessione disponibile *',key:'session_duration',required:true,options:['30-45 minuti','45-60 minuti','60-90 minuti','90-120 minuti','120+ minuti']},
     {type:'select',label:'Urgenza del risultato',key:'urgency',options:['Nessuna fretta (6-12 mesi)','Media (3-6 mesi)','Alta (1-3 mesi)','Evento specifico']},
     {type:'select',label:'Recupero tra le serie (preferenza)',key:'rest_pref',options:['Breve (30-60s — alta densita)','Normale (60-120s — ipertrofia)','Lungo (2-4 min — forza)','Variabile (come il programma indica)']},
     {type:'select',label:'Tipo WOD preferito (se CrossFit)',key:'wod_type',options:['Non applicabile','AMRAP (max reps in tempo)','EMOM (esercizio ogni minuto)','For Time (completa il prima possibile)','Tabata (20s on / 10s off)','Chipper (lista lunga da completare)','Hero WOD (benchmark)','Misto a discrezione del coach']}
   ]},
   { id:'body', title:'Dati Fisici e Composizione', fields:[
-    {type:'number',label:'Altezza (cm)',key:'height',placeholder:'175'},
-    {type:'number',label:'Peso attuale (kg)',key:'weight',placeholder:'75'},
+    {type:'number',label:'Altezza (cm) *',key:'height',required:true,placeholder:'175'},
+    {type:'number',label:'Peso attuale (kg) *',key:'weight',required:true,placeholder:'75'},
     {type:'number',label:'Peso obiettivo (kg)',key:'target_weight',placeholder:'70'},
     {type:'number',label:'Percentuale grasso corporeo stimata',key:'body_fat',placeholder:'18'},
-    {type:'number',label:'Eta',key:'age',placeholder:'28'},
-    {type:'select',label:'Sesso biologico',key:'sex',options:['Maschile','Femminile','Altro']},
+    {type:'number',label:'Eta *',key:'age',required:true,placeholder:'28'},
+    {type:'select',label:'Sesso biologico *',key:'sex',required:true,options:['Maschile','Femminile','Altro']},
     {type:'select',label:'Gravidanza o post-parto',key:'pregnancy',options:['Non applicabile','Post-parto 0-6 mesi','Post-parto 6-18 mesi','In gravidanza']},
     {type:'select',label:'Tipo somatico prevalente',key:'somatotype',options:['Non so','Ectomorfo (fatica a prendere massa)','Mesomorfo (risponde bene)','Endomorfo (tende ad accumulare grasso)']}
   ]},
-  { id:'strength', title:'Massimali e Performance (opzionale)', fields:[
+  { id:'strength', title:'Massimali e Performance (opzionale — salta se non sai)', fields:[
     {type:'number',label:'Squat 1RM in kg (0 se non sai)',key:'rm_squat',placeholder:'0'},
     {type:'number',label:'Panca 1RM in kg',key:'rm_bench',placeholder:'0'},
     {type:'number',label:'Stacco 1RM in kg',key:'rm_deadlift',placeholder:'0'},
@@ -4469,24 +4469,24 @@ const ONBOARD_STEPS = [
     {type:'textarea',label:'Altri PR o performance notevoli',key:'other_prs',placeholder:'Es: 20 pull-up, 5km in 22 minuti...'}
   ]},
   { id:'medical', title:'Anamnesi Medica', fields:[
-    {type:'checkbox-group',label:'Infortuni o limitazioni attive',key:'injuries',options:['Schiena bassa (lombalgia)','Ernia del disco','Ginocchio','Spalla (cuffia rotatori)','Anca','Polso o gomito','Tendinite','Nessuna limitazione']},
+    {type:'checkbox-group',label:'Infortuni o limitazioni attive *',key:'injuries',required:true,options:['Schiena bassa (lombalgia)','Ernia del disco','Ginocchio','Spalla (cuffia rotatori)','Anca','Polso o gomito','Tendinite','Nessuna limitazione']},
     {type:'checkbox-group',label:'Condizioni mediche rilevanti',key:'medical_conditions',options:['Ipertensione','Diabete tipo 2','Ipotiroidismo','Scoliosi','Osteoporosi','Asma','Nessuna']},
     {type:'textarea',label:'Esercizi da EVITARE assolutamente',key:'avoid',placeholder:'Es: nessun squat profondo, nessun overhead...'},
     {type:'textarea',label:'Farmaci che influenzano la performance',key:'meds',placeholder:'Es: beta-bloccanti, statine...'}
   ]},
   { id:'equip', title:'Attrezzatura e Ambiente', fields:[
-    {type:'checkbox-group',label:'Dove ti alleni',key:'gym',options:['Palestra completa','Casa con manubri','Palestra con bilanciere','Box CrossFit','Piscina','Calisthenics park','Solo corpo libero','Allaria aperta']},
+    {type:'checkbox-group',label:'Dove ti alleni *',key:'gym',required:true,options:['Palestra completa','Casa con manubri','Palestra con bilanciere','Box CrossFit','Piscina','Calisthenics park','Solo corpo libero','Allaria aperta']},
     {type:'checkbox-group',label:'Attrezzi disponibili',key:'equipment',options:['Bilanciere e pesi','Manubri','Macchine guidate','Cavi e pulegge','Kettlebell','Anelli o TRX','Barra trazioni','Vogatore','Tapis roulant o Cyclette','Nessuno']},
     {type:'select',label:'Accesso alla piscina',key:'pool',options:['No','Si 1-2 volte settimana','Si 3+ volte settimana']}
   ]},
   { id:'lifestyle', title:'Nutrizione e Recovery', fields:[
-    {type:'select',label:'Tipo di dieta',key:'diet',options:['Onnivora','Vegetariana','Vegana','Paleo o Carnivora','Keto','Intermittent fasting','Flessibile']},
+    {type:'select',label:'Tipo di dieta *',key:'diet',required:true,options:['Onnivora','Vegetariana','Vegana','Paleo o Carnivora','Keto','Intermittent fasting','Flessibile']},
     {type:'number',label:'Proteine giornaliere stimate in grammi',key:'daily_protein',placeholder:'150'},
     {type:'select',label:'Integrazione attuale',key:'supplements',options:['Nessuno','Solo proteine whey','Creatina e whey','Stack completo','Integratori medici']},
-    {type:'select',label:'Qualita del sonno',key:'sleep',options:['Ottima (8-9h)','Buona (7-8h)','Discreta (6-7h)','Scarsa (meno di 6h)','Irregolare (turni)']},
-    {type:'select',label:'Livello stress cronico',key:'stress',options:['Basso','Moderato','Alto','Molto alto']},
-    {type:'select',label:'Tipo di lavoro',key:'job_activity',options:['Sedentario (ufficio)','Leggermente attivo','Moderatamente attivo','Molto attivo (manuale)']},
-    {type:'select',label:'Velocita di recupero tra le sessioni',key:'recovery_rate',options:['Veloce (24h)','Normale (48h)','Lento (72h+)','Non so']}
+    {type:'select',label:'Qualita del sonno *',key:'sleep',required:true,options:['Ottima (8-9h)','Buona (7-8h)','Discreta (6-7h)','Scarsa (meno di 6h)','Irregolare (turni)']},
+    {type:'select',label:'Livello stress cronico *',key:'stress',required:true,options:['Basso','Moderato','Alto','Molto alto']},
+    {type:'select',label:'Tipo di lavoro *',key:'job_activity',required:true,options:['Sedentario (ufficio)','Leggermente attivo','Moderatamente attivo','Molto attivo (manuale)']},
+    {type:'select',label:'Velocita di recupero tra le sessioni *',key:'recovery_rate',required:true,options:['Veloce (24h)','Normale (48h)','Lento (72h+)','Non so']}
   ]},
   { id:'aesthetic', title:'Preferenze Estetiche e Note per il Coach AI', fields:[
     {type:'checkbox-group',label:'Zone muscolari da prioritizzare',key:'priority_muscles',options:['Spalle (ampiezza)','Petto','Schiena (spessore)','Bicipiti','Tricipiti','Addominali','Glutei','Gambe (quadricipiti)','Gambe (femorali)','Polpacci']},
