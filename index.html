@@ -376,7 +376,7 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
 .dash-sidebar-item:hover{background:var(--bg3);color:var(--text)}
 .dash-sidebar-item.act{background:rgba(91,94,244,.12);color:var(--accent-xl);font-weight:500}
 .dash-sidebar-item .ico{font-size:14px;flex-shrink:0;width:18px;text-align:center}
-.dash-main{flex:1;padding:26px;margin-left:220px;min-width:0}
+.dash-main{flex:1;padding:26px;margin-left:220px;min-width:0;overflow-x:hidden}
 .dash-section{display:none}
 .dash-section.act{display:block}
 
@@ -11187,7 +11187,7 @@ function renderDashAnalysis(){
   el.innerHTML=
     '<h2 style="font-family:var(--font2);margin-bottom:4px">&#127909; Analisi Movimento AI</h2>'
     +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:20px">Carica una foto del tuo esercizio — AI analizza postura, tecnica e ti fornisce feedback professionale</p>'
-    +'<div class="grid2" style="margin-bottom:16px">'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px">'
 
     +'<div class="card">'
     +'<h4 style="margin-bottom:12px">&#128247; Carica immagine</h4>'
