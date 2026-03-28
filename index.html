@@ -5154,6 +5154,18 @@ function renderDashHome(){
         ${renderTrainerMessage(u)}
       </div>
     </div>`;
+  // Banner notifiche (solo se non già attivate)
+  setTimeout(function(){
+    const homeEl = document.getElementById('ds-home');
+    if(!homeEl) return;
+    if(!SESSION?.notificationsEnabled && 'Notification' in window && Notification.permission!=='denied' && !homeEl.querySelector('.notif-banner')){
+      const nb = document.createElement('div');
+      nb.className = 'notif-banner';
+      nb.style.cssText = 'background:rgba(91,94,244,.08);border:1px solid rgba(91,94,244,.2);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px';
+      nb.innerHTML = '<span>🔔</span><div style="flex:1;color:var(--sub)">Attiva le notifiche per non perdere il tuo streak!</div><button class="btn btn-primary btn-xs" onclick="enableNotifications();this.closest(\'.notif-banner\').remove()">Attiva</button><button class="btn btn-ghost btn-xs" onclick="this.closest(\'.notif-banner\').remove()">No</button>';
+      homeEl.insertBefore(nb, homeEl.firstChild);
+    }
+  }, 200);
 }
 
 function renderDailyChallenge(){
@@ -9824,26 +9836,6 @@ function renderDashAICoach(){
 }
 
 // Also add to Home dashboard quick actions
-const _origRenderDashHome = (typeof renderDashHome === 'function' && !renderDashHome._wrapped)
-  ? renderDashHome : null;
-function renderDashHome(){
-  if(_origRenderDashHome) _origRenderDashHome();
-  // Inject notification button in hero area
-  const homeEl = document.getElementById('ds-home');
-  if(!homeEl) return;
-  // Check if notification button needed
-  if(!SESSION?.notificationsEnabled && 'Notification' in window && Notification.permission!=='denied'){
-    const notifBanner = document.createElement('div');
-    notifBanner.style.cssText = 'background:rgba(91,94,244,.08);border:1px solid rgba(91,94,244,.2);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:12px';
-    notifBanner.innerHTML = `
-      <span style="font-size:1.1rem">🔔</span>
-      <div style="flex:1;color:var(--sub)">Attiva le notifiche per non perdere mai il tuo streak!</div>
-      <button class="btn btn-primary btn-xs" onclick="enableNotifications();this.closest('[style*=rgba]').remove()">Attiva</button>
-      <button class="btn btn-ghost btn-xs" onclick="this.closest('[style*=rgba]').remove()">No</button>`;
-    homeEl.insertBefore(notifBanner, homeEl.firstChild);
-  }
-}
-
 
 // ─── INIT ─────────────────────────────────────────────────
 // ─── WEEKLY CHECK-IN AUTO POPUP ──────────────────────────────
