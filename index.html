@@ -4521,8 +4521,18 @@ function renderOnbStep(){
   const isLast = onbStep === getCurrentSteps().length-1;
   if(next){ next.textContent = isLast ? 'Genera il mio programma AI 🚀' : 'Avanti →'; }
   const step = getCurrentSteps()[onbStep];
-  content.innerHTML = `<div class="card"><h3 style="font-family:var(--font2);margin-bottom:20px">${step.title}</h3>
-    <div style="display:flex;flex-direction:column;gap:16px">
+  // Verifica se ci sono campi obbligatori in questo step
+  const _hasRequired = (step.fields||[]).some(f=>f.required);
+  const _reqNote = _hasRequired
+    ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:7px 12px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:8px">
+        <span style="color:var(--red);font-size:.95rem;font-weight:700">*</span>
+        <span style="font-size:.8rem;color:var(--sub)">I campi contrassegnati con <strong style="color:var(--red)">*</strong> sono <strong>obbligatori</strong> per generare il tuo programma personalizzato</span>
+       </div>`
+    : '';
+  content.innerHTML = `<div class="card">
+    <h3 style="font-family:var(--font2);margin-bottom:12px">${step.title}</h3>
+    ${_reqNote}
+    <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px">
       ${step.fields.map(f=>renderOnbField(f)).join('')}
     </div></div>`;
   // Restore saved values
