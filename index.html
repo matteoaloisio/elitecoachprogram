@@ -4484,11 +4484,8 @@ function onbPrev(){ onbCollect(); if(onbStep>0){onbStep--;renderOnbStep();} }
 // ─── AI PROGRAM GENERATION ────────────────────────────────
 
 async function generateAIProgram(){
-  if(!ANTHROPIC_KEY){
-    toast('Chiave API mancante. Owner Panel → Config AI.','error');
-    setTimeout(()=>showPage('pg-land'),2000);
-    return;
-  }
+  // ANTHROPIC_KEY: opzionale se api/ai.js usa variabile server Vercel
+  // Il proxy /api/ai usa process.env.ANTHROPIC_API_KEY automaticamente
   const bar=document.getElementById('gen-bar');
   const msgEl=document.getElementById('gen-msg');
   const MSGS=['Analizzando profilo...','Calcolando split ottimale...','Costruendo esercizi...','Aggiungendo progressioni...','Finalizzando...'];
@@ -4612,7 +4609,7 @@ async function generateAIProgram(){
     /* ─ CHIAMATA API ────────────────────────────────────── */
     const r = await fetch('/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY||'','anthropic-version':'2023-06-01'},
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01'},
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
         max_tokens:4500,
