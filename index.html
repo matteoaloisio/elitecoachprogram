@@ -10951,7 +10951,7 @@ function previewAnalysis(input){
   const file = input.files?.[0];
   if(!file) return;
   const preview  = document.getElementById('analysis-preview');
-  const imgEl    = document.getElementById('analysis-img');
+  const imgEl    = document.getElementById('va-img-preview');
   const placeholder = document.getElementById('analysis-placeholder');
   const reader   = new FileReader();
   reader.onload  = e => {
@@ -11608,12 +11608,12 @@ function renderDashAnalysis(){
     +'<div class="card">'
     +'<h4 style="margin-bottom:12px">&#128247; Carica immagine</h4>'
     +'<div style="border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px" onclick="document.getElementById(\'analysis-file\').click()" onmouseenter="this.style.borderColor=\'var(--accent)\'" onmouseleave="this.style.borderColor=\'var(--border)\'">'
-    +'<div id="analysis-preview" style="display:none;margin-bottom:8px"><img id="analysis-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain"></div>'
+    +'<div id="analysis-preview" style="display:none;margin-bottom:8px"><img id="va-img-preview" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain"></div>'
     +'<div id="analysis-placeholder"><div style="font-size:2rem;margin-bottom:6px">&#128247;</div><div style="font-size:.84rem;color:var(--sub)">Clicca per caricare<br>JPG, PNG, screenshot</div></div>'
     +'</div>'
     +'<input type="file" id="analysis-file" accept="image/*" style="display:none" onchange="previewAnalysis(this)">'
     +'<div class="field" style="margin-bottom:10px"><label>Esercizio</label>'
-    +'<select class="inp" id="analysis-exercise" onchange="document.getElementById(\'custom-ex-wrap\').style.display=this.value===\'custom\'?\'\':\'none\'">'
+    +'<select class="inp" id="va-exercise-modal" onchange="document.getElementById(\'custom-ex-wrap\').style.display=this.value===\'custom\'?\'\':\'none\'">'
     +'<option value="">-- Seleziona --</option>'
     +'<optgroup label="Compound"><option>Squat</option><option>Deadlift / Stacco</option><option>Bench Press</option><option>Overhead Press</option><option>Trazioni / Pull Up</option><option>Barbell Row</option></optgroup>'
     +'<optgroup label="Olimpici"><option>Clean and Jerk</option><option>Snatch</option><option>Push Press</option></optgroup>'
@@ -11628,7 +11628,7 @@ function renderDashAnalysis(){
 
     +'<div class="card" style="display:flex;flex-direction:column">'
     +'<h4 style="margin-bottom:12px">&#128203; Feedback AI</h4>'
-    +'<div id="analysis-result" style="flex:1;min-height:200px;background:var(--bg2);border-radius:10px;padding:14px;font-size:.86rem;color:var(--sub);line-height:1.7">'
+    +'<div id="va-analysis-result" style="flex:1;min-height:200px;background:var(--bg2);border-radius:10px;padding:14px;font-size:.86rem;color:var(--sub);line-height:1.7">'
     +'<div style="text-align:center;padding:30px 0;color:var(--muted)"><div style="font-size:2rem;margin-bottom:8px">&#129504;</div>Carica una foto e seleziona l\'esercizio per ricevere l\'analisi</div>'
     +'</div></div></div>'
 
@@ -11650,7 +11650,7 @@ function previewAnalysis(input){
   if(!input.files||!input.files[0])return;
   var reader=new FileReader();
   reader.onload=function(e){
-    var img=document.getElementById('analysis-img');
+    var img=document.getElementById('va-img-preview');
     var prev=document.getElementById('analysis-preview');
     var ph=document.getElementById('analysis-placeholder');
     if(img)img.src=e.target.result;
@@ -11663,76 +11663,91 @@ function previewAnalysis(input){
 
 
 async function analyzeMovement(){
-  const fileInput = document.getElementById('analysis-file');
-  const exSel = document.getElementById('analysis-exercise')?.value || '';
+  // Supporta entrambi gli id: analysis-img (sezione statica) e analysis-file (sezione JS)
+  const fileInput = document.getElementById('analysis-img') || document.getElementById('analysis-file');
+  const exSel    = document.getElementById('analysis-exercise')?.value || '';
   const customEx = (document.getElementById('custom-exercise')?.value||'').trim();
-  const exercise = exSel === 'custom' ? customEx : exSel;
-  const notes = (document.getElementById('analysis-notes')?.value||'').trim();
-  if(!fileInput?.files?.[0]){ toast('Carica prima un\'immagine','error'); return; }
+  const exercise = exSel === 'custom' ? customEx : (exSel || 'Esercizio generico');
+  const notes    = (document.getElementById('analysis-notes')?.value||'').trim();
+
+  if(!fileInput?.files?.[0]){ toast('Carica prima un\'immagine o foto','error'); return; }
   if(!exercise){ toast('Seleziona l\'esercizio da analizzare','error'); return; }
 
-  const resultDiv = document.getElementById('analysis-result');
+  // Mostra risultato e spinner
+  const resultDiv  = document.getElementById('analysis-result');
   const contentDiv = document.getElementById('analysis-content');
-  if(resultDiv) resultDiv.style.display = '';
-  if(contentDiv) contentDiv.innerHTML = `<div style="text-align:center;padding:20px;color:var(--sub)">
-    <div class="spinner" style="margin:0 auto 10px"></div>
-    <p style="font-size:13px">Analisi in corso...</p></div>`;
+  if(resultDiv)  { resultDiv.style.display  = ''; }
+  if(contentDiv) { contentDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--sub)"><div class="spinner" style="margin:0 auto 10px"></div><p style="font-size:13px">Analisi in corso con AI...</p></div>'; }
+
+  // Aggiorna anche il bottone
+  const btn = document.getElementById('btn-analyze') || document.querySelector('[onclick="analyzeMovement()"]');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Analisi in corso...'; }
 
   const reader = new FileReader();
   reader.onload = async e => {
-    const base64 = e.target.result.split(',')[1];
+    const base64    = e.target.result.split(',')[1];
     const mediaType = fileInput.files[0].type || 'image/jpeg';
     try {
       const resp = await fetch('/api/ai',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
-          max_tokens: 1200,
-          system: `Sei un preparatore atletico e fisioterapista esperto. Analizza l'immagine di un esercizio di forza e fornisci un'analisi tecnica dettagliata e pratica in italiano. Sii diretto, specifico e costruttivo.`,
+          max_tokens: 1400,
+          system: 'Sei un preparatore atletico e fisioterapista esperto. Analizza tecnicamente l\'immagine di un esercizio di forza. Rispondi sempre in italiano, sii diretto, specifico e costruttivo. Struttura la risposta con intestazioni markdown **grassetto**.',
           messages:[{
             role:'user',
             content:[
               { type:'image', source:{ type:'base64', media_type: mediaType, data: base64 }},
-              { type:'text', text:`Analizza la tecnica di esecuzione di: ${exercise}${notes ? '. Contesto aggiuntivo: '+notes : ''}.
-
-Fornisci:
-1. **Valutazione generale** (voto /10 e giudizio sintetico)
-2. **Punti positivi** (cosa sta facendo bene)
-3. **Errori identificati** (specifici e osservabili nell'immagine)
-4. **Correzioni immediate** (3 correzioni pratiche prioritarie)
-5. **Rischio infortuni** (zone a rischio se presenti)
-6. **Drill correttivi** (1-2 esercizi per correggere gli errori)
-
-Sii specifico su quello che VEDI nell'immagine, non generico.`}
+              { type:'text', text:'Analizza la tecnica di esecuzione di: '+exercise+(notes?'. Contesto: '+notes:'')+'.\n\nFornisci:\n**1. Valutazione generale** (voto /10)\n**2. Punti positivi**\n**3. Errori identificati**\n**4. Correzioni immediate** (3 priorità)\n**5. Rischio infortuni**\n**6. Drill correttivi** (1-2 esercizi)\n\nSii specifico su ciò che vedi nell\'immagine.'}
             ]
           }]
         })
       });
-      const data = await resp.json();
-      const text = data.content?.[0]?.text || 'Analisi non disponibile';
-      if(contentDiv){
-        contentDiv.innerHTML = `
-          <div style="font-size:13px;line-height:1.8;color:var(--sub)">
-            ${text.split('\n').map(line=>{
-              if(line.startsWith('**') && line.endsWith('**'))
-                return `<h5 style="color:var(--text);font-family:var(--font2);margin-top:12px;margin-bottom:4px">${line.replace(/\*\*/g,'')}</h5>`;
-              if(line.match(/^\d\./))
-                return `<div style="margin-bottom:4px">${line}</div>`;
-              return line ? `<p style="margin-bottom:4px">${line}</p>` : '';
-            }).join('')}
-          </div>
-          <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-sm btn-primary" onclick="saveAnalysisToProfile(${JSON.stringify(text).replace(/'/g,'&apos;').replace(/"/g,'&quot;')})">💾 Salva nel profilo</button>
-            <button class="btn btn-sm btn-ghost" onclick="shareToMeta('${exercise} analizzato con EliteCoachProgram.fit AI! 🏋️ #fitness')">📤 Condividi</button>
-          </div>`;
+
+      if(!resp.ok){
+        const errText = await resp.text();
+        throw new Error('HTTP '+resp.status+': '+errText.slice(0,100));
       }
+
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+      const text = (data.content||[]).find(b=>b.type==='text')?.text || 'Analisi non disponibile.';
+
+      if(contentDiv){
+        const html_out = text
+          .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text);display:block;margin-top:12px;margin-bottom:4px;font-family:var(--font2)">$1</strong>')
+          .replace(/\n/g, '<br>');
+        contentDiv.innerHTML =
+          '<div style="font-size:13px;line-height:1.8;color:var(--sub)">'+html_out+'</div>'
+          +'<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">'
+          +'<button class="btn btn-sm btn-primary" onclick="saveAnalysisToProfile(this.closest(\'[id=analysis-content]\')?.previousElementSibling?.textContent||\'\')" >💾 Salva nel profilo</button>'
+          +'</div>';
+      }
+
+      // Salva nello storico analisi
+      if(SESSION){
+        SESSION.analyses = SESSION.analyses || [];
+        SESSION.analyses.unshift({ date: new Date().toISOString(), exercise, text: text.slice(0,500) });
+        if(SESSION.analyses.length > 20) SESSION.analyses = SESSION.analyses.slice(0,20);
+        updateUser(SESSION); saveSession(SESSION);
+      }
+
     } catch(err){
-      if(contentDiv) contentDiv.innerHTML = `<p style="color:var(--red);font-size:13px">Errore analisi. Riprova con un'altra immagine.</p>`;
+      console.error('analyzeMovement error:', err);
+      if(contentDiv) contentDiv.innerHTML =
+        '<div style="color:var(--red);font-size:13px;padding:12px;background:rgba(248,113,113,.08);border-radius:8px">'
+        +'❌ <strong>Errore analisi:</strong> '+String(err.message||err).slice(0,120)
+        +'<br><small style="color:var(--muted)">Verifica: immagine valida, connessione attiva, API key configurata.</small>'
+        +'</div>';
+    } finally {
+      if(btn){ btn.disabled = false; btn.textContent = '🤖 Analizza con AI →'; }
     }
   };
   reader.readAsDataURL(fileInput.files[0]);
 }
+
 
 function saveAnalysisToProfile(text){
   if(!SESSION) return;
@@ -12275,8 +12290,17 @@ function renderDashExportContent(){
           <div class="field">
             <label>Esercizio da analizzare</label>
             <select class="inp" id="analysis-exercise" style="max-width:280px">
-              ${['Squat Bilanciere','Stacco da Terra','Panca Piana Bilanciere','Trazioni',
-                'Overhead Press','Hip Thrust','Rematore Bilanciere','Altro'].map(e=>`<option>${e}</option>`).join('')}
+                <option value="Squat Bilanciere">Squat Bilanciere</option>
+                <option value="Stacco da Terra">Stacco da Terra</option>
+                <option value="Panca Piana Bilanciere">Panca Piana Bilanciere</option>
+                <option value="Trazioni">Trazioni</option>
+                <option value="Overhead Press">Overhead Press</option>
+                <option value="Hip Thrust">Hip Thrust</option>
+                <option value="Rematore Bilanciere">Rematore Bilanciere</option>
+                <option value="Affondi Manubri">Affondi Manubri</option>
+                <option value="Curl Bilanciere">Curl Bilanciere</option>
+                <option value="Dips Parallele">Dips Parallele</option>
+                <option value="Altro">Altro esercizio</option>
             </select>
           </div>
           <div class="field">
@@ -12307,6 +12331,19 @@ function renderDashExportContent(){
 function renderDashExport(){
   const el = document.getElementById('ds-export');
   if(el) el.innerHTML = renderDashExportContent();
+}
+
+function previewAnalysisImg(input){
+  var prev = document.getElementById('analysis-preview');
+  var img  = document.getElementById('analysis-preview-img');
+  if(input.files && input.files[0] && prev && img){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      img.src = e.target.result;
+      prev.style.display = '';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
 }
 
 function openMovementAnalysis(){
