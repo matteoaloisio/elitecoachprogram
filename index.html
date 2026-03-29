@@ -376,10 +376,10 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
 .dash-sidebar-item:hover{background:var(--bg3);color:var(--text)}
 .dash-sidebar-item.act{background:rgba(91,94,244,.12);color:var(--accent-xl);font-weight:500}
 .dash-sidebar-item .ico{font-size:14px;flex-shrink:0;width:18px;text-align:center}
-.dash-main{flex:1;padding:28px 32px 28px 252px;margin-left:0;min-width:0;overflow-x:hidden;box-sizing:border-box}
+.dash-main{flex:1;padding:24px;margin-left:220px;min-width:0;overflow-x:hidden;box-sizing:border-box}
 .dash-section{display:none}
 .dash-section.act{display:block}
-@media(max-width:768px){.dash-sidebar{transform:translateX(-100%);transition:.3s}.dash-sidebar.open{transform:translateX(0)}.dash-main{padding:16px !important}}
+@media(max-width:768px){.dash-main{margin-left:0;padding:14px}}
 
 .trainer-sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);
   padding:14px 10px;position:fixed;top:var(--nav-h);left:0;
@@ -1139,10 +1139,11 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-section" id="ds-export"></div>
     <!-- WEEKLY CHECKIN -->
     <div class="dash-section" id="ds-checkin"></div>
-  </main>
-</div>
+  
     <!-- ANALYSIS -->
     <div class="dash-section" id="ds-analysis"></div>
+    </main>
+</div>
     <!-- MOBILE NAV -->
 <nav class="mobile-nav">
   <div class="mobile-nav-item act" onclick="showDashSection('home')" data-sec="home"><div class="mn-ico">🏠</div>Home</div>
