@@ -1096,7 +1096,7 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
     <div class="dash-sidebar-item" onclick="showDashSection('dati')" data-sec="dati"><span class="ico">📊</span>Dati</div>
     <div class="dash-sidebar-item" onclick="showDashSection('piano')" data-sec="piano"><span class="ico">💳</span>Piano</div>
     <div style="border-top:1px solid var(--border2);margin-top:auto;padding-top:8px">
-    <div class="dash-sidebar-item" onclick="showDashSection('analysis')" data-sec="analysis"><span class="ico">🎥</span>Analisi Video</div>
+    <div class="dash-sidebar-item" onclick="showDashSection('analysis')" data-sec="analysis"><span class="ico">🎥</span>Analisi Esercizio AI</div>
     <div class="dash-sidebar-item" onclick="showDashSection('checkin')" data-sec="checkin"><span class="ico">📋</span>Check-in</div>
     <div class="dash-sidebar-item" onclick="showDashSection('1rm')" data-sec="1rm"><span class="ico">🏋️</span>Calc 1RM</div>
     <div class="dash-sidebar-item" onclick="showDashSection('social')" data-sec="social"><span class="ico">👥</span>Social</div>
@@ -10946,6 +10946,25 @@ function previewVAFile(input){
   reader.readAsDataURL(file);
 }
 
+function previewAnalysis(input){
+  // Alias per compatibilità con renderDashAnalysis
+  const file = input.files?.[0];
+  if(!file) return;
+  const preview  = document.getElementById('analysis-preview');
+  const imgEl    = document.getElementById('analysis-img');
+  const placeholder = document.getElementById('analysis-placeholder');
+  const reader   = new FileReader();
+  reader.onload  = e => {
+    if(imgEl)    { imgEl.src = e.target.result; }
+    if(preview)  { preview.style.display = ''; }
+    if(placeholder){ placeholder.style.display = 'none'; }
+    // Aggiorna anche il drop-zone border per feedback visivo
+    const dropZone = input.closest('div[onclick]') || input.parentElement;
+    if(dropZone) dropZone.style.borderColor = 'var(--teal)';
+  };
+  reader.readAsDataURL(file);
+}
+
 function handleVADrop(event){
   event.preventDefault();
   const file = event.dataTransfer.files?.[0];
@@ -11582,7 +11601,7 @@ function renderDashAnalysis(){
   if(!el)return;
   el.innerHTML=
     '<div style="max-width:1100px">'
-    +'<h2 style="font-family:var(--font2);margin-bottom:4px">&#127909; Analisi Movimento AI</h2>'
+    +'<h2 style="font-family:var(--font2);margin-bottom:4px">&#129504; Analisi Esercizio AI</h2>'
     +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:20px">Carica una foto del tuo esercizio — AI analizza postura, tecnica e ti fornisce feedback professionale</p>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px">'
 
@@ -11641,71 +11660,16 @@ function previewAnalysis(input){
   reader.readAsDataURL(input.files[0]);
 }
 
-async function analyzeMovement(){
-  var fileInput=document.getElementById('analysis-file');
-  var exSel=(document.getElementById('analysis-exercise')||{}).value;
-  var customEx=((document.getElementById('custom-exercise')||{}).value||'').trim();
-  var notes=((document.getElementById('analysis-notes')||{}).value||'').trim();
-  var exercise=exSel==='custom'?customEx:exSel;
-  var result=document.getElementById('analysis-result');
-  var btn=document.getElementById('btn-analyze');
-  if(!exercise){toast('Seleziona l\'esercizio da analizzare','error');return;}
-  if(!fileInput||!fileInput.files||!fileInput.files.length){toast('Carica prima una foto','error');return;}
-  if(btn){btn.disabled=true;btn.textContent='Analizzando...';}
-  if(result)result.innerHTML='<div style="text-align:center;padding:30px 0;color:var(--sub)"><div style="font-size:1.5rem;margin-bottom:8px">&#129504;</div>Analizzando la tecnica...</div>';
-  try{
-    var file=fileInput.files[0];
-    var base64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
-    var mediaType=file.type||'image/jpeg';
-    var pr=SESSION&&SESSION.profile||{};
-    var prompt='Sei un coach di strength & conditioning esperto. Analizza questa foto di '+exercise+(notes?'. Contesto: '+notes:'')
-      +'. Atleta: Livello='+(pr.level||'intermedio')+', Obiettivo='+(pr.goal||'forza')
-      +'. Fornisci: 1) PUNTI DI FORZA 2) AREE DI MIGLIORAMENTO 3) CORREZIONI IMMEDIATE 4) RISCHIO INFORTUNI (basso/medio/alto). Sii specifico e professionale.';
-    var resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
-          {type:'text',text:prompt}
-        ]}]
-      })
-    });
-    var data=await resp.json();
-    var txt=(data.content||[]).find(function(b){return b.type==='text';})||{text:''};
-    var formatted=txt.text
-      .replace(/1\)\s*PUNTI DI FORZA/gi,'<div style="font-weight:700;color:var(--teal);margin-top:12px;margin-bottom:4px">&#10003; PUNTI DI FORZA</div>')
-      .replace(/2\)\s*AREE DI MIGLIORAMENTO/gi,'<div style="font-weight:700;color:var(--gold);margin-top:12px;margin-bottom:4px">&#9888; AREE DI MIGLIORAMENTO</div>')
-      .replace(/3\)\s*CORREZIONI IMMEDIATE/gi,'<div style="font-weight:700;color:var(--accent);margin-top:12px;margin-bottom:4px">&#128161; CORREZIONI IMMEDIATE</div>')
-      .replace(/4\)\s*RISCHIO INFORTUNI/gi,'<div style="font-weight:700;color:var(--red);margin-top:12px;margin-bottom:4px">&#128680; RISCHIO INFORTUNI</div>')
-      .replace(/\n/g,'<br>');
-    if(result)result.innerHTML='<div style="color:var(--text)">'+formatted+'</div>';
-    SESSION.analysisHistory=SESSION.analysisHistory||[];
-    SESSION.analysisHistory.unshift({exercise:exercise,date:new Date().toISOString(),summary:txt.text.substring(0,120)+'...'});
-    if(SESSION.analysisHistory.length>20)SESSION.analysisHistory=SESSION.analysisHistory.slice(0,20);
-    updateUser(SESSION);saveSession(SESSION);
-  }catch(e){
-    console.error('analyzeMovement:',e);
-    if(result)result.innerHTML='<p style="color:var(--red)">Errore analisi. Verifica che il file sia un\'immagine valida e riprova.</p>';
-  }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='&#129504; Analizza con AI';}
-  }
-}
 
-function previewAnalysisImg(input){
-  const file = input.files?.[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById('analysis-preview');
-    const img = document.getElementById('analysis-preview-img');
-    if(preview && img){ preview.style.display=''; img.src = e.target.result; }
-  };
-  reader.readAsDataURL(file);
-}
 
 async function analyzeMovement(){
-  const fileInput = document.getElementById('analysis-img');
-  const exercise = document.getElementById('analysis-exercise')?.value || 'Esercizio';
+  const fileInput = document.getElementById('analysis-file');
+  const exSel = document.getElementById('analysis-exercise')?.value || '';
+  const customEx = (document.getElementById('custom-exercise')?.value||'').trim();
+  const exercise = exSel === 'custom' ? customEx : exSel;
+  const notes = (document.getElementById('analysis-notes')?.value||'').trim();
   if(!fileInput?.files?.[0]){ toast('Carica prima un\'immagine','error'); return; }
+  if(!exercise){ toast('Seleziona l\'esercizio da analizzare','error'); return; }
 
   const resultDiv = document.getElementById('analysis-result');
   const contentDiv = document.getElementById('analysis-content');
@@ -11730,7 +11694,8 @@ async function analyzeMovement(){
             role:'user',
             content:[
               { type:'image', source:{ type:'base64', media_type: mediaType, data: base64 }},
-              { type:'text', text:`Analizza la tecnica di esecuzione di questo ${exercise}. 
+              { type:'text', text:`Analizza la tecnica di esecuzione di: ${exercise}${notes ? '. Contesto aggiuntivo: '+notes : ''}.
+
 Fornisci:
 1. **Valutazione generale** (voto /10 e giudizio sintetico)
 2. **Punti positivi** (cosa sta facendo bene)
