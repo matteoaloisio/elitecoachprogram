@@ -11348,25 +11348,6 @@ function submitQuickOnboarding(){
   generateAIProgram();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ADD VIDEO ANALYSIS BUTTON TO AI COACH
-// ═══════════════════════════════════════════════════════════════
-const _origRenderDashAICoach = renderDashAICoach;
-function renderDashAICoach(){
-  _origRenderDashAICoach();
-  // Append video analysis button
-  const msgs = document.getElementById('ai-msgs');
-  if(msgs){
-    const btns = msgs.parentElement?.querySelector('[style*="margin-top:10px"]');
-    if(btns){
-      const vaBtn = document.createElement('button');
-      vaBtn.className = 'btn btn-ghost btn-xs';
-      vaBtn.innerHTML = '🎥 Analisi video';
-      vaBtn.onclick = openVideoAnalysis;
-      btns.appendChild(vaBtn);
-    }
-  }
-}
 
 // Also add to Home dashboard quick actions
 
