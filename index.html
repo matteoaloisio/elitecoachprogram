@@ -4786,8 +4786,8 @@ async function generateAIProgram(){
       method:'POST',
       headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01'},
       body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:4500,
+        model:getAIModel(),
+        max_tokens:6000,
         messages:[
           {role:'user',      content:prompt},
           {role:'assistant', content:'{"name":"'}
@@ -4803,7 +4803,11 @@ async function generateAIProgram(){
 
     /* ─ PARSING ROBUSTO ─────────────────────────────────── */
     const rawText = (d.content||[]).find(b=>b.type==='text')?.text||'';
-    const raw = '{"name":"'+rawText;
+    // Dedup prefill: AI potrebbe includere già {"name":" nell'output
+    const rawClean = rawText.startsWith('{') ? rawText
+                   : rawText.startsWith('"name"') ? '{'+rawText
+                   : rawText;
+    const raw = rawClean.startsWith('{') ? rawClean : '{"name":"'+rawClean;
     // ── Parse JSON robusto inline ──────────────────────
     let prog = null;
     try { prog = JSON.parse(raw); } catch(_e1){}
@@ -4825,7 +4829,7 @@ async function generateAIProgram(){
     /* ─ VALIDAZIONE + FALLBACK ──────────────────────────── */
     const minDays = Math.max(1, Math.ceil(sessions*0.6));
     const hasOk   = prog && Array.isArray(prog.days) && prog.days.length>=minDays
-                    && prog.days[0]?.exercises?.length>=3;
+                    && prog.days.every(d=>Array.isArray(d.exercises)&&d.exercises.length>=3);
     if(!hasOk){
       console.warn('AI output incompleto ('+( prog?.days?.length||0)+' giorni). Smart fallback attivato.');
       prog = buildSmartFallback(p);
@@ -4868,7 +4872,7 @@ async function generateAIProgram(){
             notes:      ex.technique_notes||ex.notes         || '',
             load_tip:   ex.load_recommendation||ex.load_tip  || '',
             progression:ex.progression_rule||ex.progression  || '',
-            technique:  ex.technique                         || 'normale',
+            technique:  (ex.technique==='normal'?'normale':ex.technique) || 'normale',
             yt:         ex.yt_query
               ? 'https://www.youtube.com/results?search_query='+encodeURIComponent(ex.yt_query)
               : (getYTLink&&getYTLink({name:ex.name})) || ''
@@ -4881,6 +4885,7 @@ async function generateAIProgram(){
     if(bar) bar.style.width='100%';
     if(msgEl) msgEl.textContent=prog.name+' pronto!';
 
+    if(!SESSION){ clearInterval(tick); throw new Error('Sessione scaduta. Rieffettua il login.'); }
     SESSION.program = prog;
     SESSION.programGeneratedAt = new Date().toISOString();
     updateUser(SESSION); saveSession(SESSION);
@@ -5104,10 +5109,33 @@ function buildSmartFallback(p){
         {day:'Giorno 3 – Upper Metabolico',session_type:'Upper Metabolico',warmup:'5min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:4,reps:'12',rest:45,technique:'superset'},{name:'Rematore Cavo',sets:4,reps:'12',rest:45,technique:'superset'},KBS,BU,MT,PL]},
         {day:'Giorno 4 – Lower + HIIT',session_type:'Lower+HIIT',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,SM,HI,MBS,AB]},
       ]},
+      2:{name:'Ricomposizione 2x',split:'Full Body',days:[
+        {day:'Giorno 1 - Full Body Forza',session_type:'Full Body',warmup:'8min',cooldown:'5min',exercises:[SQ,BP,LAT,HT,KBS,PL]},
+        {day:'Giorno 2 - Full Body Meta',session_type:'Full Body',warmup:'5min',cooldown:'5min',exercises:[DL,OHP,ROW,BS,BU,AB]},
+      ]},
+      5:{name:'Ricomposizione 5x',split:'Upper/Lower/HIIT',days:[
+        {day:'Giorno 1 - Upper',session_type:'Upper',warmup:'8min',cooldown:'5min',exercises:[BP,LAT,OHP,ROW,{name:'Curl Bilanciere',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Skull Crusher',sets:3,reps:'12',rest:60,technique:'superset'}]},
+        {day:'Giorno 2 - Lower',session_type:'Lower',warmup:'10min',cooldown:'5min',exercises:[SQ,HT,BS,LE,LC,CR]},
+        {day:'Giorno 3 - HIIT',session_type:'HIIT',warmup:'5min',cooldown:'5min',exercises:[HI,BU,KBS,MBS,BB,MT]},
+        {day:'Giorno 4 - Upper Meta',session_type:'Upper Meta',warmup:'5min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:4,reps:'12',rest:45,technique:'superset'},{name:'Rematore Cavo',sets:4,reps:'12',rest:45,technique:'superset'},KBS,BU,MT,PL]},
+        {day:'Giorno 5 - Lower Cardio',session_type:'Lower+Cardio',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,SM,HI,AB,PL]},
+      ]},
+      6:{name:'Ricomposizione 6x',split:'Upper/Lower/HIIT x2',days:[
+        {day:'Giorno 1 - Upper A',session_type:'Upper A',warmup:'8min',cooldown:'5min',exercises:[BP,LAT,OHP,ROW,{name:'Curl Bilanciere',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Skull Crusher',sets:3,reps:'12',rest:60,technique:'superset'}]},
+        {day:'Giorno 2 - Lower A',session_type:'Lower A',warmup:'10min',cooldown:'5min',exercises:[SQ,HT,BS,LE,LC,CR]},
+        {day:'Giorno 3 - HIIT A',session_type:'HIIT A',warmup:'5min',cooldown:'5min',exercises:[HI,BU,KBS,MBS,BB,MT]},
+        {day:'Giorno 4 - Upper B',session_type:'Upper B',warmup:'8min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:4,reps:'12',rest:60,technique:'superset'},{name:'Rematore Cavo',sets:4,reps:'12',rest:60,technique:'superset'},LT,FP,{name:'Curl Martello',sets:3,reps:'12',rest:45,technique:'superset'},{name:'Dips Tricipiti',sets:3,reps:'12',rest:45,technique:'superset'}]},
+        {day:'Giorno 5 - Lower B',session_type:'Lower B',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,SM,LC,PL,AB]},
+        {day:'Giorno 6 - HIIT B',session_type:'HIIT+Core',warmup:'5min',cooldown:'5min',exercises:[HI,MBS,BB,LR,RU,AB]},
+      ]},
     },
 
     // ─ CARDIO E RESISTENZA / ENDURANCE ────────────────────────────
     'cardio': {
+      2:{name:'Cardio 2x Full Body',split:'Full Body',days:[
+        {day:'Giorno 1 - Forza HIIT',session_type:'Forza HIIT',warmup:'5min corsa leggera',cooldown:'5min',exercises:[GS,BP,KBS,BU,MT,JR]},
+        {day:'Giorno 2 - LISS Core',session_type:'LISS Core',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa Leggera',sets:1,reps:'30 min',rest:0,notes:'Zona 2: puoi parlare',technique:'normale'},{name:'Cycling o Ellittica',sets:1,reps:'20 min',rest:0,notes:'Ritmo costante',technique:'normale'},PL,AB,RU,LR]},
+      ]},
       3:{name:'Cardio & Resistenza 3x',split:'Cardio+Forza',days:[
         {day:'Giorno 1 – Forza Resistenza',session_type:'Forza Endurance',warmup:'5min corsa leggera',cooldown:'5min',exercises:[GS,{name:'Step Up Manubri',sets:4,reps:'15 per gamba',rest:45,technique:'normale'},ROW,KBS,MT,JR]},
         {day:'Giorno 2 – LISS + Core',session_type:'Cardio Lungo',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa Leggera',sets:1,reps:'30 min',rest:0,notes:'Zona 2: puoi parlare',technique:'normale'},{name:'Cycling o Ellittica',sets:1,reps:'20 min',rest:0,notes:'Ritmo costante',technique:'normale'},PL,AB,RU,LR]},
@@ -5118,6 +5146,21 @@ function buildSmartFallback(p){
         {day:'Giorno 2 – LISS Lungo',session_type:'LISS',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa 45-60 min',sets:1,reps:'45-60 min',rest:0,notes:'Zona 2, frequenza cardiaca 130-150bpm',technique:'normale'},PL,AB,LR]},
         {day:'Giorno 3 – HIIT Avanzato',session_type:'HIIT',warmup:'5min',cooldown:'5min',exercises:[{...HI,sets:10},BU,MBS,BB,MT,JR]},
         {day:'Giorno 4 – Forza Resistenza',session_type:'Forza Resistenza',warmup:'5min',cooldown:'5min',exercises:[GS,{name:'Step Up Manubri',sets:4,reps:'15 per gamba',rest:45,technique:'circuit'},{name:'Rematore Cavo',sets:4,reps:'15',rest:45,technique:'circuit'},KBS,{name:'Burpee',sets:4,reps:'10',rest:60,technique:'circuit'},AB]},
+      ]},
+      5:{name:'Cardio 5x Avanzato',split:'Cardio Avanzato',days:[
+        {day:'Giorno 1 - Forza',session_type:'Forza',warmup:'5min',cooldown:'5min',exercises:[SQ,ROW,OHP,KBS,BU,JR]},
+        {day:'Giorno 2 - LISS',session_type:'LISS',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa 45 min',sets:1,reps:'45 min',rest:0,notes:'Zona 2 FC 130-150bpm',technique:'normale'},PL,AB,LR]},
+        {day:'Giorno 3 - HIIT',session_type:'HIIT',warmup:'5min',cooldown:'5min',exercises:[HI,BU,KBS,MBS,BB,MT]},
+        {day:'Giorno 4 - Forza Resistenza',session_type:'Forza Resistenza',warmup:'5min',cooldown:'5min',exercises:[GS,{name:'Rematore Cavo',sets:4,reps:'15',rest:45,technique:'circuit'},KBS,BU,MT,AB]},
+        {day:'Giorno 5 - LISS Core',session_type:'LISS Core',warmup:'3min',cooldown:'5min',exercises:[{name:'Cycling o Ellittica',sets:1,reps:'40 min',rest:0,notes:'Ritmo costante',technique:'normale'},PL,RU,LR,AB]},
+      ]},
+      6:{name:'Cardio 6x Intensivo',split:'Cardio Intensivo',days:[
+        {day:'Giorno 1 - Forza',session_type:'Forza',warmup:'5min',cooldown:'5min',exercises:[SQ,ROW,OHP,KBS,BU,JR]},
+        {day:'Giorno 2 - LISS A',session_type:'LISS A',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa 40 min',sets:1,reps:'40 min',rest:0,notes:'Zona 2',technique:'normale'},PL,AB]},
+        {day:'Giorno 3 - HIIT A',session_type:'HIIT A',warmup:'5min',cooldown:'5min',exercises:[HI,BU,KBS,MBS,BB,MT]},
+        {day:'Giorno 4 - Forza Resistenza',session_type:'Forza Resistenza',warmup:'5min',cooldown:'5min',exercises:[DL,GS,{name:'Rematore Cavo',sets:4,reps:'15',rest:45,technique:'circuit'},KBS,BU,AB]},
+        {day:'Giorno 5 - LISS B',session_type:'LISS B',warmup:'3min',cooldown:'5min',exercises:[{name:'Corsa 55 min',sets:1,reps:'55 min',rest:0,notes:'Zona 2',technique:'normale'},PL,RU,LR]},
+        {day:'Giorno 6 - HIIT B Core',session_type:'HIIT+Core',warmup:'5min',cooldown:'5min',exercises:[HI,MBS,BB,LR,RU,AB]},
       ]},
     },
 
@@ -5137,6 +5180,21 @@ function buildSmartFallback(p){
         {day:'Giorno 2 – Lower A',session_type:'Lower',warmup:'8min',cooldown:'5min',exercises:[SQ,HT,BS,LE,LC,CR]},
         {day:'Giorno 3 – Upper B',session_type:'Upper B',warmup:'8min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Rematore Cavo',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Arnold Press',sets:3,reps:'12',rest:60,technique:'normale'},FP,{name:'Curl Martello',sets:3,reps:'12',rest:45,technique:'superset'},{name:'Dips Tricipiti',sets:3,reps:'12',rest:45,technique:'superset'}]},
         {day:'Giorno 4 – Lower B',session_type:'Lower B',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,SM,{name:'Hip Abduction Machine',sets:3,reps:'20',rest:45,technique:'normale'},AB,PL]},
+      ]},
+      5:{name:'Benessere 5x',split:'Upper/Lower',days:[
+        {day:'Giorno 1 - Upper A',session_type:'Upper',warmup:'8min',cooldown:'5min',exercises:[{name:'Panca Piana Manubri',sets:3,reps:'12-15',rest:75,technique:'normale'},LAT,OHP,ROW,{name:'Curl Manubri Alternati',sets:3,reps:'12',rest:60,technique:'normale'},{name:'Tricep Pushdown',sets:3,reps:'12-15',rest:60,technique:'normale'}]},
+        {day:'Giorno 2 - Lower A',session_type:'Lower',warmup:'8min',cooldown:'5min',exercises:[SQ,HT,BS,LE,LC,CR]},
+        {day:'Giorno 3 - Cardio Core',session_type:'Cardio',warmup:'5min',cooldown:'5min',exercises:[KBS,BU,MT,PL,AB,RU]},
+        {day:'Giorno 4 - Upper B',session_type:'Upper B',warmup:'8min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Rematore Cavo',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Arnold Press',sets:3,reps:'12',rest:60,technique:'normale'},FP,{name:'Curl Martello',sets:3,reps:'12',rest:45,technique:'superset'},{name:'Dips Tricipiti',sets:3,reps:'12',rest:45,technique:'superset'}]},
+        {day:'Giorno 5 - Lower B',session_type:'Lower B',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,SM,AB,PL,CR]},
+      ]},
+      6:{name:'Benessere 6x',split:'Full Body 3x',days:[
+        {day:'Giorno 1 - Upper A',session_type:'Upper A',warmup:'8min',cooldown:'5min',exercises:[BP,LAT,OHP,ROW,{name:'Curl Manubri',sets:3,reps:'12',rest:60,technique:'normale'},{name:'Tricep Pushdown',sets:3,reps:'12',rest:60,technique:'normale'}]},
+        {day:'Giorno 2 - Lower A',session_type:'Lower A',warmup:'8min',cooldown:'5min',exercises:[SQ,HT,BS,LE,LC,CR]},
+        {day:'Giorno 3 - Cardio',session_type:'Cardio',warmup:'5min',cooldown:'5min',exercises:[{name:'Corsa Leggera',sets:1,reps:'25 min',rest:0,notes:'Zona 2',technique:'normale'},PL,AB,RU]},
+        {day:'Giorno 4 - Upper B',session_type:'Upper B',warmup:'8min',cooldown:'5min',exercises:[{name:'Panca Inclinata Manubri',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Rematore Cavo',sets:3,reps:'12',rest:60,technique:'superset'},{name:'Arnold Press',sets:3,reps:'12',rest:60,technique:'normale'},LT,{name:'Curl Martello',sets:3,reps:'12',rest:45,technique:'normale'},{name:'Dips Tricipiti',sets:3,reps:'12',rest:45,technique:'normale'}]},
+        {day:'Giorno 5 - Lower B',session_type:'Lower B',warmup:'8min',cooldown:'5min',exercises:[DL,RDL,{name:'Hip Thrust Bilanciere',sets:4,reps:'12-15',rest:90,technique:'normale'},LC,PL,AB]},
+        {day:'Giorno 6 - Recovery',session_type:'Mobilita',warmup:'5min',cooldown:'10min',exercises:[{name:'Stretching Full Body',sets:1,reps:'20 min',rest:0,technique:'normale'},{name:'Cammino',sets:1,reps:'30 min',rest:0,technique:'normale'},PL,AB,RU,LR]},
       ]},
     },
     'calistenia': {
@@ -5162,13 +5220,38 @@ function buildSmartFallback(p){
           {name:'Hollow Body Hold',sets:3,reps:'45s',rest:45,rpe:'RPE 7',tempo:'',notes:'Lombare a terra',load_tip:'BW',progression:'+5s sett2',technique:'normale',yt:'https://www.youtube.com/results?search_query=hollow+body+hold'},
           {name:'Handstand Push Up',sets:3,reps:'max',rest:90,rpe:'RPE 8',tempo:'',notes:'A muro progredisci',load_tip:'BW',progression:'+1 sett3',technique:'normale',yt:'https://www.youtube.com/results?search_query=handstand+push+up'}
         ]}
+      ]},
+      2:{name:'Calistenia 2x',split:'Full Body',days:[
+        {day:'G1 - Upper',session_type:'Upper',warmup:'10min',cooldown:'5min',exercises:[{name:'Trazioni Presa Larga',sets:4,reps:'max',rest:120,technique:'normale'},{name:'Dips Parallele',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Pike Push Up',sets:3,reps:'max',rest:60,technique:'normale'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'},{name:'Hollow Body Hold',sets:3,reps:'30s',rest:45,technique:'normale'}]},
+        {day:'G2 - Lower Core',session_type:'Lower',warmup:'10min',cooldown:'5min',exercises:[{name:'Pistol Squat',sets:4,reps:'max/gamba',rest:90,technique:'normale'},{name:'Nordic Hamstring Curl',sets:3,reps:'max',rest:90,technique:'normale'},{name:'Glute Bridge',sets:4,reps:'20',rest:45,technique:'normale'},{name:'Ab Wheel Rollout',sets:3,reps:'10',rest:75,technique:'normale'},{name:'L-Sit Parallette',sets:3,reps:'15s',rest:60,technique:'normale'}]},
+      ]},
+      4:{name:'Calistenia 4x',split:'Push Pull Legs Skill',days:[
+        {day:'G1 - Push',session_type:'Push',warmup:'10min',cooldown:'5min',exercises:[{name:'Dips Parallele',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Diamond Push Up',sets:3,reps:'max',rest:60,technique:'normale'},{name:'Pike Push Up',sets:3,reps:'max',rest:60,technique:'normale'},{name:'Planche Tuck',sets:4,reps:'30s',rest:90,technique:'normale'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'}]},
+        {day:'G2 - Pull',session_type:'Pull',warmup:'10min',cooldown:'5min',exercises:[{name:'Trazioni Presa Larga',sets:5,reps:'max',rest:120,technique:'normale'},{name:'Trazioni Presa Stretta',sets:3,reps:'max',rest:90,technique:'superset'},{name:'Front Lever Tuck',sets:4,reps:'20s',rest:120,technique:'normale'},{name:'Ab Wheel Rollout',sets:3,reps:'10',rest:75,technique:'superset'},{name:'Australian Pullup',sets:3,reps:'max',rest:60,technique:'normale'}]},
+        {day:'G3 - Lower',session_type:'Lower',warmup:'10min',cooldown:'5min',exercises:[{name:'Pistol Squat',sets:4,reps:'max/gamba',rest:90,technique:'normale'},{name:'Nordic Hamstring Curl',sets:3,reps:'max',rest:90,technique:'normale'},{name:'Glute Bridge',sets:4,reps:'20',rest:45,technique:'normale'},{name:'Hollow Body Hold',sets:3,reps:'45s',rest:45,technique:'normale'},{name:'L-Sit Parallette',sets:3,reps:'20s',rest:60,technique:'normale'}]},
+        {day:'G4 - Skill',session_type:'Skill',warmup:'10min',cooldown:'5min',exercises:[{name:'Handstand Push Up',sets:3,reps:'max',rest:90,technique:'normale'},{name:'Muscle Up',sets:3,reps:'max',rest:120,technique:'normale'},{name:'Rope Climb',sets:3,reps:'3 salite',rest:120,technique:'normale'},{name:'Wall Walk',sets:3,reps:'5 reps',rest:90,technique:'normale'},{name:'Plank Laterale',sets:3,reps:'45s/lato',rest:45,technique:'normale'}]},
+      ]},
+      5:{name:'Calistenia 5x',split:'Push Pull Legs Skill Conditioning',days:[
+        {day:'G1 - Push',session_type:'Push',warmup:'10min',cooldown:'5min',exercises:[{name:'Dips Parallele',sets:5,reps:'max',rest:90,technique:'normale'},{name:'Diamond Push Up',sets:4,reps:'max',rest:60,technique:'superset'},{name:'Pike Push Up',sets:3,reps:'max',rest:60,technique:'superset'},{name:'Planche Tuck',sets:4,reps:'30s',rest:90,technique:'normale'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'}]},
+        {day:'G2 - Pull',session_type:'Pull',warmup:'10min',cooldown:'5min',exercises:[{name:'Trazioni Presa Larga',sets:5,reps:'max',rest:120,technique:'normale'},{name:'Trazioni Presa Stretta',sets:4,reps:'max',rest:90,technique:'superset'},{name:'Front Lever Tuck',sets:4,reps:'25s',rest:120,technique:'normale'},{name:'Ab Wheel Rollout',sets:4,reps:'12',rest:75,technique:'normale'},{name:'Australian Pullup',sets:3,reps:'max',rest:60,technique:'normale'}]},
+        {day:'G3 - Lower',session_type:'Lower',warmup:'10min',cooldown:'5min',exercises:[{name:'Pistol Squat',sets:5,reps:'max/gamba',rest:90,technique:'normale'},{name:'Nordic Hamstring Curl',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Glute Bridge',sets:4,reps:'20',rest:45,technique:'normale'},{name:'Hollow Body Hold',sets:3,reps:'45s',rest:45,technique:'normale'},{name:'L-Sit Parallette',sets:4,reps:'20s',rest:60,technique:'normale'}]},
+        {day:'G4 - Skill',session_type:'Skill',warmup:'10min',cooldown:'5min',exercises:[{name:'Handstand Push Up',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Muscle Up',sets:4,reps:'max',rest:120,technique:'normale'},{name:'Rope Climb',sets:4,reps:'3 salite',rest:120,technique:'normale'},{name:'Handstand Walk',sets:3,reps:'5m',rest:90,technique:'normale'},{name:'Plank Laterale',sets:3,reps:'45s/lato',rest:45,technique:'normale'}]},
+        {day:'G5 - Conditioning',session_type:'Conditioning',warmup:'5min',cooldown:'5min',exercises:[{name:'Burpee',sets:4,reps:'15',rest:60,technique:'circuit'},{name:'Jump Rope Basic',sets:3,reps:'2 min',rest:60,technique:'circuit'},{name:'Mountain Climber',sets:3,reps:'30s',rest:30,technique:'circuit'},{name:'High Knees',sets:3,reps:'30s',rest:30,technique:'circuit'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'}]},
+      ]},
+      6:{name:'Calistenia 6x Elite',split:'Push Pull Legs Skill x2',days:[
+        {day:'G1 - Push A',session_type:'Push A',warmup:'10min',cooldown:'5min',exercises:[{name:'Dips Parallele',sets:5,reps:'max',rest:90,technique:'normale'},{name:'Diamond Push Up',sets:4,reps:'max',rest:60,technique:'superset'},{name:'Pike Push Up',sets:4,reps:'max',rest:60,technique:'superset'},{name:'Planche Tuck',sets:5,reps:'30s',rest:90,technique:'normale'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'}]},
+        {day:'G2 - Pull A',session_type:'Pull A',warmup:'10min',cooldown:'5min',exercises:[{name:'Trazioni Presa Larga',sets:6,reps:'max',rest:120,technique:'normale'},{name:'Trazioni Presa Stretta',sets:4,reps:'max',rest:90,technique:'superset'},{name:'Front Lever Tuck',sets:5,reps:'25s',rest:120,technique:'normale'},{name:'Ab Wheel Rollout',sets:4,reps:'12',rest:75,technique:'normale'},{name:'L-Sit Parallette',sets:4,reps:'20s',rest:60,technique:'normale'}]},
+        {day:'G3 - Lower A',session_type:'Lower A',warmup:'10min',cooldown:'5min',exercises:[{name:'Pistol Squat',sets:5,reps:'max/gamba',rest:90,technique:'normale'},{name:'Nordic Hamstring Curl',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Glute Bridge',sets:4,reps:'20',rest:45,technique:'normale'},{name:'Hollow Body Hold',sets:3,reps:'45s',rest:45,technique:'normale'},{name:'Plank Laterale',sets:3,reps:'45s/lato',rest:45,technique:'normale'}]},
+        {day:'G4 - Push B',session_type:'Push B',warmup:'10min',cooldown:'5min',exercises:[{name:'Handstand Push Up',sets:4,reps:'max',rest:90,technique:'normale'},{name:'Muscle Up',sets:4,reps:'max',rest:120,technique:'normale'},{name:'Ring Dip',sets:3,reps:'max',rest:90,technique:'normale'},{name:'Pike Push Up',sets:3,reps:'max',rest:60,technique:'drop set'},{name:'Plank',sets:3,reps:'60s',rest:45,technique:'normale'}]},
+        {day:'G5 - Pull B',session_type:'Pull B',warmup:'10min',cooldown:'5min',exercises:[{name:'Chest-to-Bar Pull-up',sets:4,reps:'max',rest:120,technique:'normale'},{name:'Rope Climb',sets:4,reps:'3 salite',rest:120,technique:'normale'},{name:'Handstand Walk',sets:4,reps:'5m',rest:90,technique:'normale'},{name:'Ab Wheel Rollout',sets:4,reps:'12',rest:75,technique:'superset'},{name:'Australian Pullup',sets:3,reps:'max',rest:60,technique:'normale'}]},
+        {day:'G6 - Conditioning',session_type:'Conditioning',warmup:'5min',cooldown:'5min',exercises:[{name:'Burpee',sets:5,reps:'15',rest:60,technique:'circuit'},{name:'Jump Rope Basic',sets:4,reps:'2 min',rest:60,technique:'circuit'},{name:'Mountain Climber',sets:4,reps:'30s',rest:30,technique:'circuit'},{name:'Pistol Squat',sets:3,reps:'max/gamba',rest:60,technique:'circuit'},{name:'Hollow Body Hold',sets:3,reps:'45s',rest:45,technique:'normale'}]},
       ]}
     }
   };
 
   // ── Mappa obiettivo → chiave ──────────────────────────
   let key = 'benessere';
-  if(goal.includes('crossfit')||goal.includes('wod'))               key='crossfit';
+  if(goal.includes('crossfit')||goal.includes('wod'))               key='ipertrofia'; // CrossFit: usa template ipertrofia (completo 2-6gg)
   else if(goal.includes('calisteni'))                                key='calistenia';
   else if(goal.includes('ipertrofia')||goal.includes('ppl')||goal.includes('massa'))       key='ipertrofia';
   else if(goal.includes('dimagr')||goal.includes('fat')||goal.includes('hiit')||goal.includes('definiz')) key='dimagrimento';
@@ -5182,6 +5265,7 @@ function buildSmartFallback(p){
 
   // ── Trova il numero di giorni più vicino ──────────────
   const available = Object.keys(bank).map(Number).sort((a,b)=>a-b);
+  if(!available.length) return buildFallbackProgram ? buildFallbackProgram(p) : {};
   const closest   = available.reduce((prev,curr)=>Math.abs(curr-sessions)<Math.abs(prev-sessions)?curr:prev);
   const template  = bank[closest];
 
@@ -5693,32 +5777,57 @@ function renderExerciseCard(ex, ei, dayKey){
   const techBadge = ex.technique && ex.technique !== 'normale'
     ? `<span class="technique-badge tech-${ex.technique.replace(' ','')} btn-xs" onclick="openWODTimer('${ex.technique}')" title="${TECH_TIPS[ex.technique]||'Tecnica: '+ex.technique}" style="cursor:help">${ex.technique.toUpperCase()}</span>` : '';
 
-  // Load previous weights from localStorage
   const logKey = `ecp_weights_${SESSION?.email||'x'}_${dayKey}_${ei}`;
   const prevWeights = JSON.parse(localStorage.getItem(logKey)||'[]');
 
-  return `<div class="workout-exercise" id="ex-${dayKey}-${ei}" style="position:relative">
+  // Alternativa e RX
+  const altKey = `ecp_alt_${SESSION?.email||'x'}_${dayKey}_${ei}`;
+  const savedAlt = JSON.parse(localStorage.getItem(altKey)||'null');
+  const activeEx = savedAlt || ex;
+  const isAltActive = !!savedAlt;
+
+  const altData = getExerciseAlternative(ex);
+  const hasAlt = altData && altData.name !== ex.name;
+  const isWOD = !!(ex.wod_type || (SESSION?.program?.days?.[currentDayIdx]?.wod_type));
+  const rxInfo = isWOD ? getRXInfo(ex) : null;
+
+  // Se c'è alternativa attiva, mostra quella
+  const displayEx = activeEx;
+  const displayYt = getYTLink(displayEx);
+
+  return `<div class="workout-exercise" id="ex-${dayKey}-${ei}" style="position:relative${isAltActive?';border-color:rgba(245,200,66,.4);background:rgba(245,200,66,.02)':''}">
     <!-- EXERCISE HEADER -->
     <div class="ex-header">
-      <div class="ex-yt-play" onclick="openYTDirect('${(ex.name||'').replace(/'/g,"\\'")}')">
-        ${ytUrl ? '▶' : '💪'}
+      <div class="ex-yt-play" onclick="openYTDirect('${(displayEx.name||'').replace(/'/g,"\\'")}')">
+        ${displayYt ? '▶' : '💪'}
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:13px;margin-bottom:3px;color:var(--text)">${ex.name}</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:3px;color:var(--text)">
+          ${displayEx.name}
+          ${isAltActive ? '<span style="font-size:.65rem;background:rgba(245,200,66,.2);color:var(--gold);padding:2px 7px;border-radius:20px;margin-left:5px;font-weight:600">ALT</span>' : ''}
+        </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:12px;color:var(--sub);font-weight:600">${sets}×${ex.reps||'10-12'}</span>
+          <span style="font-size:12px;color:var(--sub);font-weight:600">${sets}×${displayEx.reps||ex.reps||'10-12'}</span>
           <span style="font-size:11px;color:var(--muted)">⏱${ex.rest||90}s</span>
-          ${ex.rpe ? `<span class="tag t-gold" style="font-size:10px;cursor:help" title="RPE (Sforzo Percepito): ${ex.rpe}. RPE 8 = 2 reps in riserva, RPE 9 = 1 rep, RPE 10 = massimo">RPE ${ex.rpe}</span>` : ''}
+          ${ex.rpe ? `<span class="tag t-gold" style="font-size:10px">RPE ${ex.rpe}</span>` : ''}
           ${ex.tempo ? `<span class="tag t-purple" style="font-size:10px">⏱${ex.tempo}</span>` : ''}
           ${techBadge}
+          ${isAltActive ? `<span style="font-size:10px;color:var(--sub);text-decoration:line-through">${ex.name}</span>` : ''}
         </div>
       </div>
       <button class="btn btn-ghost btn-xs" onclick="logExercise('${dayKey}',${ei})" title="Log completato">✓</button>
     </div>
 
     <!-- NOTES + LOAD TIP -->
-    ${ex.notes ? `<div style="font-size:11px;color:var(--sub);margin-bottom:6px;padding:6px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--accent)">📝 ${ex.notes}</div>` : ''}
-    ${ex.load_tip ? `<div style="font-size:11px;color:var(--teal);margin-bottom:6px;padding:5px 8px;background:rgba(15,214,194,.06);border-radius:6px;border-left:2px solid var(--teal)">💡 ${ex.load_tip}</div>` : ''}
+    ${displayEx.notes||ex.notes ? `<div style="font-size:11px;color:var(--sub);margin-bottom:6px;padding:6px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--accent)">📝 ${displayEx.notes||ex.notes}</div>` : ''}
+    ${displayEx.load_tip||ex.load_tip ? `<div style="font-size:11px;color:var(--teal);margin-bottom:6px;padding:5px 8px;background:rgba(15,214,194,.06);border-radius:6px;border-left:2px solid var(--teal)">💡 ${displayEx.load_tip||ex.load_tip}</div>` : ''}
+
+    <!-- RX INFO (CrossFit) -->
+    ${rxInfo ? `<div style="font-size:11px;padding:6px 10px;background:rgba(91,94,244,.08);border:1px solid rgba(91,94,244,.2);border-radius:6px;margin-bottom:6px;display:flex;gap:12px;flex-wrap:wrap">
+      <span style="color:var(--accent-xl);font-weight:700">RX</span>
+      ${rxInfo.rx ? `<span style="color:var(--gold)">&#128293; ${rxInfo.rx}</span>` : ''}
+      ${rxInfo.scaled ? `<span style="color:var(--sub)">Scaled: ${rxInfo.scaled}</span>` : ''}
+    </div>` : ''}
 
     <!-- SETS ROW -->
     <div class="ex-sets-row" id="sets-${dayKey}-${ei}">
@@ -5730,13 +5839,34 @@ function renderExerciseCard(ex, ei, dayKey){
             placeholder="${prev||'kg'}" id="kg-${dayKey}-${ei}-${s}"
             value="${prev||''}"
             onclick="event.stopPropagation()" onchange="saveSetWeight('${dayKey}',${ei},${s},this.value)">
-          <span style="font-size:10px;color:var(--muted)">×${ex.reps||'10'}</span>
+          <span style="font-size:10px;color:var(--muted)">×${displayEx.reps||ex.reps||'10'}</span>
         </div>`;
       }).join('')}
     </div>
 
     <!-- PROGRESSION TIP -->
     ${ex.progression ? `<div style="font-size:10px;color:var(--muted);margin-top:5px;padding:4px 8px;background:var(--bg2);border-radius:4px">📈 ${ex.progression}</div>` : ''}
+
+    <!-- ALTERNATIVA / RX BUTTON -->
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      ${hasAlt ? `<button onclick="toggleExerciseAlt('${dayKey}',${ei})" style="
+        display:flex;align-items:center;gap:6px;
+        padding:5px 11px;border-radius:50px;cursor:pointer;
+        font-size:.74rem;font-weight:600;border:1.5px solid;
+        background:${isAltActive?'rgba(245,200,66,.15)':'var(--bg2)'};
+        border-color:${isAltActive?'var(--gold)':'var(--border)'};
+        color:${isAltActive?'var(--gold)':'var(--sub)'};
+        transition:.2s">
+        ${isAltActive ? '↩ Torna a: '+ex.name : '🔄 Alt: '+altData.name}
+      </button>` : ''}
+      ${isWOD && rxInfo ? `<button onclick="showRXInfo('${dayKey}',${ei})" style="
+        display:flex;align-items:center;gap:5px;
+        padding:5px 11px;border-radius:50px;cursor:pointer;
+        font-size:.74rem;font-weight:600;border:1.5px solid rgba(91,94,244,.35);
+        background:rgba(91,94,244,.08);color:var(--accent-xl);transition:.2s">
+        ⚡ Carico RX
+      </button>` : ''}
+    </div>
 
     <!-- REST TIMER -->
     <div id="rest-timer-${dayKey}-${ei}" style="display:none;margin-top:8px">
@@ -5749,6 +5879,270 @@ function renderExerciseCard(ex, ei, dayKey){
     </div>
   </div>`;
 }
+
+// ── DATABASE ALTERNATIVE ESERCIZI ────────────────────────────────
+const EXERCISE_ALTERNATIVES = {
+  // ── PETTO ──────────────────────────────────────────────────────
+  'Panca Piana Bilanciere':        {name:'Chest Press Machine',    muscle:'Petto',   note:'Movimento guidato, ideale senza spotter'},
+  'Chest Press Machine':           {name:'Panca Piana Bilanciere', muscle:'Petto',   note:'Versione libera, attiva stabilizzatori'},
+  'Panca Piana Manubri':           {name:'Chest Press Machine',    muscle:'Petto',   note:'Macchina = maggiore isolamento'},
+  'Panca Inclinata Bilanciere':    {name:'Incline Press Machine',  muscle:'Petto',   note:'Angolo 30°, petto superiore'},
+  'Panca Inclinata Manubri':       {name:'Incline Press Machine',  muscle:'Petto',   note:'Movimento guidato'},
+  'Dips Parallele':                {name:'Chest Dip Machine',      muscle:'Petto/Tricipiti', note:'Assistita o con peso'},
+  'Dips Petto':                    {name:'Chest Dip Machine',      muscle:'Petto',   note:'Dip guidato alla macchina'},
+  'Chest Dip Machine':             {name:'Dips Parallele',         muscle:'Petto/Tricipiti', note:'Versione libera più difficile'},
+  'Croci Piana Manubri':           {name:'Pec Deck / Butterfly Machine', muscle:'Petto', note:'Isolamento petto interno'},
+  'Pec Deck / Butterfly Machine':  {name:'Croci Piana Manubri',   muscle:'Petto',   note:'Versione manubri, ROM maggiore'},
+  'Crossover Cavi':                {name:'Pec Deck / Butterfly Machine', muscle:'Petto', note:'Tensione costante'},
+
+  // ── SCHIENA ────────────────────────────────────────────────────
+  'Rematore Bilanciere Prono':     {name:'Seated Row Machine',     muscle:'Schiena', note:'Macchina = schiena supportata'},
+  'Barbell Row':                   {name:'Seated Row Machine',     muscle:'Schiena', note:'Rematore seduto guidato'},
+  'Rematore Bilanciere':           {name:'Seated Row Machine',     muscle:'Schiena', note:'Macchina = isolamento schiena'},
+  'Rematore Manubrio':             {name:'Seated Row Machine',     muscle:'Schiena', note:'Presa stretta, schiena media'},
+  'Seated Row Machine':            {name:'Rematore Bilanciere Prono', muscle:'Schiena', note:'Versione libera, attiva core'},
+  'Rematore Cavo':                 {name:'Seated Row Machine',     muscle:'Schiena', note:'Versione stack'},
+  'Lat Machine Presa Larga':       {name:'Trazioni Presa Larga',   muscle:'Dorsali', note:'Peso corporeo, più intenso'},
+  'Trazioni Presa Larga':          {name:'Lat Machine Presa Larga',muscle:'Dorsali', note:'Assistita, carica progressiva'},
+  'Pull Up':                       {name:'Lat Machine Presa Larga',muscle:'Dorsali', note:'Lat machine = volume più facile'},
+  'Lat Pulldown':                  {name:'Trazioni Presa Larga',   muscle:'Dorsali', note:'Peso corporeo'},
+  'Stacco da Terra':               {name:'Stacco al Trap Bar',     muscle:'Schiena/Gambe', note:'Trap bar riduce stress lombare'},
+  'Deadlift':                      {name:'Stacco al Trap Bar',     muscle:'Schiena/Gambe', note:'Variante più sicura'},
+  'Stacco Rumeno':                 {name:'Leg Curl Machine Seduto',muscle:'Femorali', note:'Isolamento hamstring'},
+
+  // ── GAMBE ──────────────────────────────────────────────────────
+  'Squat Bilanciere':              {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Leg press = sicura, carico elevato'},
+  'Squat Bilanciere High Bar':     {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Aggiungi carico progressivo'},
+  'Squat Bilanciere Low Bar':      {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Posizione piedi alta per glutei'},
+  'Squat':                         {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Macchina = sicura senza spotter'},
+  'Squat corpo libero':            {name:'Leg Press 45°',          muscle:'Quadricipiti',        note:'Aggiungi resistenza'},
+  'Goblet Squat':                  {name:'Leg Press 45°',          muscle:'Quadricipiti',        note:'Macchina = più carico'},
+  'Leg Press 45°':                 {name:'Squat Bilanciere',       muscle:'Quadricipiti/Glutei', note:'Squat = attiva core e stabilità'},
+  'Leg Press 45 Gradi':            {name:'Squat Bilanciere',       muscle:'Quadricipiti/Glutei', note:'Squat libero'},
+  'Leg Press':                     {name:'Squat Bilanciere',       muscle:'Quadricipiti/Glutei', note:'Squat libero'},
+  'Leg Extension Machine':         {name:'Hack Squat Machine',     muscle:'Quadricipiti',        note:'Hack squat = compound quad'},
+  'Leg Curl Machine Seduto':       {name:'Stacco Rumeno',          muscle:'Femorali',            note:'RDL = compound hamstring'},
+  'Leg Curl Machine Disteso':      {name:'Stacco Rumeno',          muscle:'Femorali',            note:'Stacco rumeno'},
+  'Hip Thrust Bilanciere':         {name:'Hip Thrust Machine',     muscle:'Glutei',              note:'Macchina = stabilità ottimale'},
+  'Hip Thrust Manubri':            {name:'Hip Thrust Machine',     muscle:'Glutei',              note:'Macchina = più carico'},
+  'Bulgarian Split Squat':         {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Unilaterale → leg press piede alto'},
+  'Affondi Bilanciere':            {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Leg press monopodalica'},
+  'Affondi Manubri':               {name:'Leg Press 45°',          muscle:'Quadricipiti/Glutei', note:'Leg press alternata'},
+  'Calf Raise In Piedi':           {name:'Calf Raise Seduto',      muscle:'Polpacci',            note:'Isola il soleo'},
+  'Calf Raise Seduto':             {name:'Calf Raise In Piedi',    muscle:'Polpacci',            note:'Gastrocnemio, ROM completo'},
+
+  // ── SPALLE ────────────────────────────────────────────────────
+  'Lento Avanti Bilanciere':       {name:'Shoulder Press Machine', muscle:'Spalle',  note:'Macchina = schiena supportata'},
+  'Overhead Press':                {name:'Shoulder Press Machine', muscle:'Spalle',  note:'Movimento guidato'},
+  'Arnold Press':                  {name:'Shoulder Press Machine', muscle:'Spalle',  note:'Macchina = sicurezza'},
+  'Shoulder Press Machine':        {name:'Lento Avanti Bilanciere',muscle:'Spalle',  note:'Versione libera, attiva core'},
+  'Alzate Laterali Manubri':       {name:'Alzate Laterali Machine',muscle:'Deltoide Laterale', note:'Tensione costante con macchina'},
+  'Alzate Laterali Cavi':          {name:'Alzate Laterali Machine',muscle:'Deltoide Laterale', note:'Stack = progressione semplice'},
+  'Alzate Laterali Machine':       {name:'Alzate Laterali Manubri',muscle:'Deltoide Laterale', note:'ROM libero, più stabilizzatori'},
+  'Alzate Frontali Manubri':       {name:'Alzate Frontali Bilanciere', muscle:'Deltoide Anteriore', note:'Bilanciere = bilaterale'},
+  'Face Pull Cavi':                {name:'Rear Delt Fly Machine',  muscle:'Deltoide Posteriore', note:'Macchina = isolamento'},
+  'Alzate Posteriori Manubri':     {name:'Rear Delt Fly Machine',  muscle:'Deltoide Posteriore', note:'Pec deck invertita'},
+  'Rear Delt Fly Machine':         {name:'Face Pull Cavi',         muscle:'Deltoide Posteriore', note:'Cavo = tensione costante'},
+
+  // ── PETTO BASSO / TRICIPITI ────────────────────────────────────
+  'Dips':                          {name:'Tricep Dip Machine',     muscle:'Tricipiti/Petto',     note:'Macchina assistita'},
+  'Dip':                           {name:'Tricep Dip Machine',     muscle:'Tricipiti',           note:'Macchina guidata'},
+  'Tricep Dip Machine':            {name:'Dips',                   muscle:'Tricipiti/Petto',     note:'Peso corporeo, più intenso'},
+  'Skull Crusher Bilanciere':      {name:'Tricep Pushdown',        muscle:'Tricipiti',           note:'Cavo = tensione costante'},
+  'Skull Crusher':                 {name:'Tricep Pushdown',        muscle:'Tricipiti',           note:'Pushdown al cavo'},
+  'Tricipiti Overhead Cavo':       {name:'French Press',           muscle:'Tricipiti',           note:'Testa lunga tricipite'},
+  'Pushdown Cavo Corda':           {name:'Tricep Dip Machine',     muscle:'Tricipiti',           note:'Macchina per volume'},
+  'Tricep Pushdown':               {name:'Skull Crusher Bilanciere', muscle:'Tricipiti',         note:'Bilanciere = carico più alto'},
+  'Close Grip Bench':              {name:'Tricep Dip Machine',     muscle:'Tricipiti',           note:'Dip machine per isolamento'},
+  'Close Grip Bench Press':        {name:'Tricep Dip Machine',     muscle:'Tricipiti',           note:'Dip machine'},
+
+  // ── BICIPITI ───────────────────────────────────────────────────
+  'Curl Bilanciere':               {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Macchina = isolamento con supporto'},
+  'Curl Bilanciere EZ':            {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Scott curl guidato'},
+  'Curl Manubri Alternati':        {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Panca Scott integrata'},
+  'Curl Manubri Simultanei':       {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Isolamento bicipite'},
+  'Curl Martello':                 {name:'Preacher Curl Machine',  muscle:'Bicipiti/Brachiale',  note:'Variante neutra'},
+  'Curl Panca Scott':              {name:'Curl Bilanciere EZ',     muscle:'Bicipiti',            note:'EZ bar = presa comoda'},
+  'Preacher Curl Machine':         {name:'Curl Bilanciere',        muscle:'Bicipiti',            note:'Bilanciere = carico più alto'},
+  'Preacher Curl':                 {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Versione machine guidata'},
+  'Curl Cavo Basso':               {name:'Preacher Curl Machine',  muscle:'Bicipiti',            note:'Macchina Scott'},
+
+  // ── CORE ───────────────────────────────────────────────────────
+  'Crunch':                        {name:'Abdominal Crunch Machine', muscle:'Core',              note:'Resistenza aggiustabile'},
+  'Crunch Inverso':                {name:'Abdominal Crunch Machine', muscle:'Core',              note:'Macchina core'},
+  'Abdominal Crunch Machine':      {name:'Crunch',                  muscle:'Core',              note:'Peso corporeo, classico'},
+  'Leg Raise Appeso':              {name:'Leg Raise Machine',       muscle:'Core Inferiore',      note:'Macchina con supporto gomiti'},
+  'Leg Raise Machine':             {name:'Leg Raise Appeso',        muscle:'Core Inferiore',      note:'Appeso = più difficile'},
+  'Plank':                         {name:'Ab Wheel Rollout',        muscle:'Core',              note:'Rollout = core dinamico'},
+  'Ab Wheel Rollout':              {name:'Plank',                   muscle:'Core',              note:'Isometrico, base solida'},
+};
+
+// Alternative per CrossFit / WOD (RX vs Scaled)
+const WOD_RX_INFO = {
+  'Thruster':          {rx:'43/29 kg', scaled:'20/15 kg', tip:'Squat completo + press overhead in un solo movimento'},
+  'Wall Ball':         {rx:'9/6 kg medball, bersaglio 3m/2.7m', scaled:'6/4 kg, bersaglio 2.7m/2.4m', tip:'Squat sotto parallelo'},
+  'Box Jump':          {rx:'60/50 cm', scaled:'step-up o 30/24 cm', tip:'Atterraggio morbido, piedi piatti'},
+  'Pull Up':           {rx:'kipping ammesso', scaled:'ring rows o lat pulldown', tip:'Full ROM: mento sopra la barra'},
+  'Kipping Pull Up':   {rx:'kipping', scaled:'ring rows o band-assisted', tip:'Usa il momentum dell\'anca'},
+  'Handstand Push Up': {rx:'testa al suolo, standard', scaled:'pike push-up o box HSPU', tip:'Corpo verticale al muro'},
+  'Double Under':      {rx:'2 giri per salto', scaled:'single under 3:1', tip:'Polsi veloci, non le braccia'},
+  'Kettlebell Swing':  {rx:'32/24 kg americana (overhead)', scaled:'16/12 kg', tip:'Hip hinge esplosivo'},
+  'Clean & Jerk':      {rx:'61/43 kg', scaled:'40/30 kg', tip:'Clean + split jerk, lock-out overhead'},
+  'Snatch':            {rx:'43/29 kg', scaled:'20/15 kg', tip:'Pull esplosivo, punch through overhead'},
+  'Burpee':            {rx:'petto al suolo + jump clap overhead', scaled:'step-back burpee', tip:'Ritmo costante'},
+  'Rope Climb':        {rx:'4.6m con piedi', scaled:'lying-to-standing rope pull', tip:'Tecnica S-wrap o J-hook'},
+  'Muscle Up':         {rx:'false grip rings', scaled:'jumping muscle-up o 3 pull-up + 3 dip', tip:'Transizione veloce'},
+  'Toes To Bar':       {rx:'piedi a toccare le mani', scaled:'knee raises', tip:'Kipping da hollow a arch'},
+  'Deadlift':          {rx:'102/70 kg', scaled:'60/45 kg', tip:'Schiena piatta, spingi il pavimento'},
+  'Overhead Squat':    {rx:'43/29 kg', scaled:'PVC o 20/15 kg', tip:'Presa larga, braccia tese'},
+  'Push Press':        {rx:'52/35 kg', scaled:'35/25 kg', tip:'Dip breve, drive delle gambe'},
+  'Row (Vogatore)':    {rx:'calorie o distanza indicata', scaled:'stessa distanza/calorie', tip:'60% gambe, 20% schiena, 20% braccia'},
+  'Assault Bike':      {rx:'calorie indicate', scaled:'stesse calorie o 70% intensita', tip:'Spingi con gambe E braccia'},
+};
+
+function getExerciseAlternative(ex){
+  const name = ex.name || '';
+  // Ricerca esatta
+  if(EXERCISE_ALTERNATIVES[name]) return EXERCISE_ALTERNATIVES[name];
+  // Ricerca parziale
+  const nameLow = name.toLowerCase();
+  for(const [key,val] of Object.entries(EXERCISE_ALTERNATIVES)){
+    if(nameLow.includes(key.toLowerCase()) || key.toLowerCase().includes(nameLow)){
+      return val;
+    }
+  }
+  // Ricerca per muscolo/categoria
+  const cat = (ex.cat||'').toLowerCase();
+  const MUSCLE_FALLBACKS = {
+    'petto':     {name:'Chest Press Machine',    muscle:'Petto', note:'Alternativa guidata per il petto'},
+    'schiena':   {name:'Seated Row Machine',     muscle:'Schiena', note:'Rematore seduto guidato'},
+    'gambe':     {name:'Leg Press 45°',          muscle:'Quadricipiti', note:'Leg press sicura'},
+    'spalle':    {name:'Shoulder Press Machine', muscle:'Spalle', note:'Press spalle guidato'},
+    'bicipiti':  {name:'Preacher Curl Machine',  muscle:'Bicipiti', note:'Curl con supporto'},
+    'tricipiti': {name:'Tricep Dip Machine',     muscle:'Tricipiti', note:'Dip guidato'},
+    'core':      {name:'Abdominal Crunch Machine', muscle:'Core', note:'Crunch macchina'},
+  };
+  return MUSCLE_FALLBACKS[cat] || null;
+}
+
+function getRXInfo(ex){
+  const name = ex.name||'';
+  if(WOD_RX_INFO[name]) return WOD_RX_INFO[name];
+  for(const [key,val] of Object.entries(WOD_RX_INFO)){
+    if(name.toLowerCase().includes(key.toLowerCase())) return val;
+  }
+  return null;
+}
+
+function toggleExerciseAlt(dayKey, ei){
+  const altKey = `ecp_alt_${SESSION?.email||'x'}_${dayKey}_${ei}`;
+  const currentAlt = JSON.parse(localStorage.getItem(altKey)||'null');
+  const dayIdx = currentDayIdx;
+  const ex = SESSION?.program?.days?.[dayIdx]?.exercises?.[ei];
+  if(!ex) return;
+
+  if(currentAlt){
+    // Torna all'originale
+    localStorage.removeItem(altKey);
+    toast('↩ Tornato a: '+ex.name, '');
+    // Log cambio nello storico
+    logExerciseSwitch(ex.name, currentAlt.name, 'originale', dayKey, ei);
+  } else {
+    // Attiva alternativa
+    const altData = getExerciseAlternative(ex);
+    if(!altData){ toast('Nessuna alternativa disponibile','error'); return; }
+    const altEx = {
+      name: altData.name,
+      sets: ex.sets, reps: ex.reps, rest: ex.rest,
+      rpe: ex.rpe, tempo: ex.tempo,
+      notes: altData.note || '',
+      load_tip: 'Alternativa a: '+ex.name+' — '+altData.muscle,
+      technique: ex.technique,
+      progression: ex.progression
+    };
+    localStorage.setItem(altKey, JSON.stringify(altEx));
+    toast('🔄 Alternativa attiva: '+altData.name, 'success');
+    logExerciseSwitch(ex.name, altData.name, 'alternativa', dayKey, ei);
+  }
+
+  // Re-render solo la card
+  const card = document.getElementById('ex-'+dayKey+'-'+ei);
+  if(card){
+    const ex2 = SESSION?.program?.days?.[dayIdx]?.exercises?.[ei];
+    if(ex2) card.outerHTML = renderExerciseCard(ex2, ei, dayKey);
+  }
+  renderDay(currentDayIdx);
+}
+
+function logExerciseSwitch(originalName, altName, direction, dayKey, ei){
+  if(!SESSION) return;
+  SESSION.altSwitches = SESSION.altSwitches || [];
+  SESSION.altSwitches.unshift({
+    date: new Date().toISOString(),
+    original: originalName,
+    alternative: altName,
+    direction: direction,
+    dayKey: dayKey,
+    exerciseIdx: ei
+  });
+  if(SESSION.altSwitches.length > 50) SESSION.altSwitches = SESSION.altSwitches.slice(0,50);
+  updateUser(SESSION);
+  saveSession(SESSION);
+}
+
+function showRXInfo(dayKey, ei){
+  const dayIdx = currentDayIdx;
+  const ex = SESSION?.program?.days?.[dayIdx]?.exercises?.[ei];
+  if(!ex) return;
+  const rxInfo = getRXInfo(ex);
+  if(!rxInfo){ toast('Nessun dato RX disponibile per questo esercizio',''); return; }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg open';
+  modal.innerHTML = `<div class="modal" style="max-width:420px">
+    <div class="modal-hd">
+      <h3>⚡ ${ex.name} — Carichi RX</h3>
+      <button class="modal-close" onclick="this.closest('.modal-bg').remove()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:rgba(245,200,66,.08);border:1.5px solid rgba(245,200,66,.3);border-radius:10px;padding:14px">
+        <div style="font-size:.7rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">RX (As Prescribed)</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--text)">${rxInfo.rx}</div>
+      </div>
+      <div style="background:rgba(91,94,244,.06);border:1.5px solid rgba(91,94,244,.2);border-radius:10px;padding:14px">
+        <div style="font-size:.7rem;font-weight:700;color:var(--accent-xl);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">SCALED (adattato)</div>
+        <div style="font-size:.9rem;color:var(--sub)">${rxInfo.scaled}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;padding:12px;font-size:.83rem;color:var(--sub)">
+        <span style="color:var(--teal);font-weight:600">&#128161; Cue tecnico:</span> ${rxInfo.tip}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="applyRXWeight('${dayKey}',${ei},'rx')" class="btn btn-primary btn-sm" style="flex:1;border-radius:50px">&#9989; Usa RX</button>
+        <button onclick="applyRXWeight('${dayKey}',${ei},'scaled')" class="btn btn-sm" style="flex:1;border-radius:50px;background:rgba(91,94,244,.1);border:1px solid rgba(91,94,244,.3);color:var(--accent-xl)">Scaled</button>
+        <button onclick="this.closest('.modal-bg').remove()" class="btn btn-ghost btn-sm" style="border-radius:50px">Chiudi</button>
+      </div>
+    </div>
+  </div>`;
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function applyRXWeight(dayKey, ei, type){
+  const dayIdx = currentDayIdx;
+  const ex = SESSION?.program?.days?.[dayIdx]?.exercises?.[ei];
+  if(!ex) return;
+  const rxInfo = getRXInfo(ex);
+  if(!rxInfo) return;
+  const load = type==='rx' ? rxInfo.rx : rxInfo.scaled;
+  // Aggiorna load_tip nell'esercizio
+  ex.load_tip = (type==='rx'?'&#9889; RX: ':'Scaled: ') + load;
+  // Salva programma aggiornato
+  updateUser(SESSION); saveSession(SESSION);
+  document.querySelector('.modal-bg.open')?.remove();
+  toast((type==='rx'?'⚡ RX':'Scaled')+' applicato: '+load, 'success');
+  renderDay(currentDayIdx);
+}
+
 
 function saveSetWeight(dayKey, ei, si, kg){
   const logKey = `ecp_weights_${SESSION?.email||'x'}_${dayKey}_${ei}`;
@@ -6434,7 +6828,7 @@ async function scanFoodAI(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-5',
         max_tokens:300,
         messages:[{role:'user',content:`Stima le macro per: "${input}". Rispondi SOLO in JSON: {"name":"${input}","kcal":0,"protein":0,"carbs":0,"fat":0}`}]
       })
@@ -10433,7 +10827,7 @@ Rispondi SOLO con JSON:
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          model:'claude-sonnet-4-20250514',
+          model:'claude-sonnet-4-5',
           max_tokens:600,
           messages:[{role:'user',content:prompt}]
         })
@@ -10594,7 +10988,7 @@ Fornisci:
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-5',
         max_tokens:1200,
         system: systemMsg,
         messages:[{
@@ -11329,7 +11723,7 @@ async function analyzeMovement(){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 1200,
           system: `Sei un preparatore atletico e fisioterapista esperto. Analizza l'immagine di un esercizio di forza e fornisci un'analisi tecnica dettagliata e pratica in italiano. Sii diretto, specifico e costruttivo.`,
           messages:[{
@@ -11417,7 +11811,7 @@ async function adaptProgram(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-5',
         max_tokens:3000,
         system:'Sei un preparatore atletico AI che adatta programmi di allenamento in base ai progressi reali. Analizza i dati e modifica il programma JSON. Rispondi SOLO con JSON valido.',
         messages:[{role:'user',content:`Analizza questi dati di performance e adatta il programma di allenamento:
@@ -11599,7 +11993,7 @@ async function submitCheckin(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-5',
         max_tokens:600,
         system:'Sei un coach personale empatico e motivante. Rispondi in italiano, conciso (max 120 parole), con un feedback personalizzato e un consiglio pratico per la settimana prossima.',
         messages:[{role:'user',content:`Check-in settimanale di ${SESSION?.name||'l\'atleta'}:
