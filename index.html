@@ -634,6 +634,12 @@ footer{border-top:1px solid var(--border);padding:24px;display:flex;
 
   .wt-tab { transition: all .15s !important; }
   .wt-tab:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+
+/* ── dotPulse typing animation ─────────────────── */
+@keyframes dotPulse {
+  0%, 100% { opacity: .3; transform: scale(.8); }
+  50%       { opacity: 1;  transform: scale(1.1); }
+}
 </style>
 
 
@@ -2867,50 +2873,70 @@ function renderOwnerSection(sec){
         <div id="promo-list">${renderPromoList()}</div>
       </div>`;
   } else if(sec==='ai'){
-    const _k=localStorage.getItem('ecp_anthropic_key')||'';
-    const _st=_k
-      ?'<span style="color:var(--green);font-weight:700">✅ Configurata</span>'
-      :'<span style="color:var(--red);font-weight:700">❌ Non configurata</span>';
-    document.getElementById('os-ai').innerHTML=`
-      <h2 style="font-family:var(--font2);margin-bottom:20px">🤖 Configurazione AI</h2>
-
-      <div class="card" style="border:1.5px solid rgba(245,200,66,.3);background:rgba(245,200,66,.04);margin-bottom:20px">
-        <h3 style="margin-bottom:8px">🔑 Chiave API Anthropic</h3>
-        <p style="font-size:.82rem;color:var(--sub);margin-bottom:12px">
-          Ottienila su <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>
-          → API Keys → Create Key
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-          <input class="inp" id="ow-api-key" type="password"
-            placeholder="sk-ant-api03-..."
-            style="flex:1;min-width:220px;font-family:monospace"
-            value="${_k}">
-          <button onclick="owSaveKey()" class="btn btn-primary" style="border-radius:50px">💾 Salva</button>
-          <button onclick="owTestKey()" class="btn" style="border-radius:50px;background:rgba(15,214,194,.12);border:1px solid rgba(15,214,194,.3);color:var(--teal)">🧪 Test</button>
-          ${_k?`<button onclick="owRevokeKey()" style="padding:9px 14px;border-radius:50px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);cursor:pointer">🗑 Revoca</button>`:''}
-        </div>
-        <div id="ow-key-feedback" style="font-size:.83rem;padding:8px 12px;border-radius:8px;display:none"></div>
-        <p style="font-size:.8rem;margin-top:8px">Stato: ${_st}</p>
-      </div>
-
-      <div class="card">
-        <h4 style="margin-bottom:12px">⚙️ Modello AI</h4>
-        <select class="inp" id="ow-model"
-          style="max-width:320px;border-radius:50px"
-          onchange="localStorage.setItem('ecp_ai_model',this.value)">
-          <option value="claude-haiku-4-5-20251001"
-            ${localStorage.getItem('ecp_ai_model')==='claude-haiku-4-5-20251001'||!localStorage.getItem('ecp_ai_model')?'selected':''}>
-            claude-haiku-4-5 ⚡ (veloce, consigliato)
-          </option>
-          <option value="claude-sonnet-4-5"
-            ${localStorage.getItem('ecp_ai_model')==='claude-sonnet-4-5'?'selected':''}>
-            claude-sonnet-4-5 🧠 (più potente, più lento)
-          </option>
-        </select>
-        <p style="font-size:.78rem;color:var(--muted);margin-top:8px">
-          Haiku: generazione in 6-10 secondi. Sonnet: 20-30 secondi.
-        </p>
-      </div>`;
+    var _k=localStorage.getItem('ecp_anthropic_key')||'';
+    var _model=localStorage.getItem('ecp_ai_model')||'claude-haiku-4-5-20251001';
+    var _mH=_model==='claude-haiku-4-5-20251001';
+    var _mS=_model==='claude-sonnet-4-5';
+    var _allU=getUsers();
+    var _totalProg=_allU.filter(function(u){return u.program;}).length;
+    var _totalSess=_allU.reduce(function(a,u){return a+(u.log||[]).length;},0);
+    var _totalMsgs=_allU.reduce(function(a,u){return a+(u.coachMessages||0);},0);
+    var _lSt=_k
+      ?'<span style="color:var(--teal);font-size:.82rem">&#10003; Chiave locale</span>'
+      :'<span style="color:var(--sub);font-size:.82rem">Nessuna chiave locale</span>';
+    var _feats=['Generazione programmi','AI Coach chat','Analisi dieta','Analisi video','Ricette AI','Check-in adattivo'];
+    var _fH=_feats.map(function(feat){
+      var fk='ai_feat_'+feat.toLowerCase().replace(/[^a-z]/g,'_');
+      var act=localStorage.getItem(fk)!=='0';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg2);border-radius:8px">'
+        +'<span style="flex:1;font-size:.88rem">'+feat+'</span>'
+        +'<div data-fkey="'+fk+'" onclick="owToggleFeat(this.dataset.fkey)" style="width:44px;height:24px;border-radius:12px;background:'+(act?'var(--accent)':'var(--bg3)')+';position:relative;cursor:pointer;transition:.3s">'
+        +'<div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:'+(act?'23px':'3px')+';transition:.3s"></div>'
+        +'</div></div>';
+    }).join('');
+    document.getElementById('os-ai').innerHTML=
+      '<h2 style="font-family:var(--font2);margin-bottom:4px">&#129504; Configurazione AI</h2>'
+      +'<p style="font-size:.85rem;color:var(--sub);margin-bottom:18px">Chiave API, modello, funzionalita AI e istruzioni Coach</p>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px">'
+      +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.4rem;font-weight:800;color:var(--accent);font-family:var(--font2)">'+_totalProg+'</div><div style="font-size:.72rem;color:var(--sub)">Programmi AI</div></div>'
+      +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:var(--font2)">'+_totalSess+'</div><div style="font-size:.72rem;color:var(--sub)">Sessioni log</div></div>'
+      +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.4rem;font-weight:800;color:var(--gold);font-family:var(--font2)">'+_totalMsgs+'</div><div style="font-size:.72rem;color:var(--sub)">Msg coach</div></div>'
+      +'<div class="card" style="text-align:center;padding:14px 8px"><div style="font-size:1.1rem;font-weight:800;color:var(--green);font-family:var(--font2)">'+(_mH?'Haiku':'Sonnet')+'</div><div style="font-size:.72rem;color:var(--sub)">Modello</div></div>'
+      +'</div>'
+      +'<div class="card" style="margin-bottom:14px;border-color:rgba(15,214,194,.25)">'
+      +'<h4 style="margin-bottom:10px">&#128279; Chiave API Vercel <span style="font-size:.75rem;color:var(--teal);font-weight:400">(raccomandata)</span></h4>'
+      +'<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:10px;font-size:.8rem;color:var(--sub);line-height:2">'
+      +'<div>&#9312; <a href="https://vercel.com/dashboard" target="_blank" style="color:var(--accent)">vercel.com</a> &#8594; Settings &#8594; Environment Variables</div>'
+      +'<div>&#9313; <code style="background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--gold)">ANTHROPIC_API_KEY</code> = <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">sk-ant-api03-...</code></div>'
+      +'<div>&#9314; Salva e rideploy</div>'
+      +'</div>'
+      +'<button onclick="owTestKey()" class="btn" style="border-radius:50px;background:rgba(15,214,194,.12);border:1px solid rgba(15,214,194,.3);color:var(--teal)">&#129514; Testa connessione</button>'
+      +'<div id="ow-key-feedback" style="font-size:.83rem;padding:8px 12px;border-radius:8px;display:none;margin-top:10px"></div>'
+      +'</div>'
+      +'<div class="card" style="margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      +'<div><h4>&#128273; Chiave locale</h4><p style="font-size:.77rem;color:var(--sub)">Sovrascrive Vercel su questo browser</p></div>'+_lSt+'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+      +'<input class="inp" id="ow-api-key" type="password" placeholder="sk-ant-api03-..." style="flex:1;min-width:200px;font-family:monospace" value="'+_k+'">'
+      +'<button onclick="owSaveKey()" class="btn btn-primary" style="border-radius:50px">&#128190; Salva</button>'
+      +(_k?'<button onclick="owRevokeKey()" class="btn" style="border-radius:50px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red)">&#128465; Rimuovi</button>':'')
+      +'</div></div>'
+      +'<div class="card" style="margin-bottom:14px"><h4 style="margin-bottom:12px">&#9881; Modello AI</h4>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div onclick="owSetModel(\'claude-haiku-4-5-20251001\')" style="border:2px solid '+(_mH?'var(--accent)':'var(--border)')+';border-radius:12px;padding:14px;cursor:pointer;transition:.2s;background:'+(_mH?'rgba(91,94,244,.08)':'var(--bg2)')+';">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">&#9889;<strong style="font-size:.9rem">claude-haiku-4-5</strong>'+(_mH?'<span style="margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:700">ATTIVO</span>':'')+'</div>'
+      +'<div style="font-size:.76rem;color:var(--sub)">6-10s &#8226; Consigliato &#8226; Economico</div></div>'
+      +'<div onclick="owSetModel(\'claude-sonnet-4-5\')" style="border:2px solid '+(_mS?'var(--accent)':'var(--border)')+';border-radius:12px;padding:14px;cursor:pointer;transition:.2s;background:'+(_mS?'rgba(91,94,244,.08)':'var(--bg2)')+';">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">&#129504;<strong style="font-size:.9rem">claude-sonnet-4-5</strong>'+(_mS?'<span style="margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:700">ATTIVO</span>':'')+'</div>'
+      +'<div style="font-size:.76rem;color:var(--sub)">20-30s &#8226; Piu potente &#8226; Costoso</div></div>'
+      +'</div></div>'
+      +'<div class="card" style="margin-bottom:14px"><h4 style="margin-bottom:12px">&#128337; Funzionalita AI</h4>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">'+_fH+'</div></div>'
+      +'<div class="card"><h4 style="margin-bottom:8px">&#128221; Istruzioni Coach AI</h4>'
+      +'<p style="font-size:.82rem;color:var(--sub);margin-bottom:8px">Regole globali per tutti gli utenti</p>'
+      +'<textarea class="inp" id="ow-ai-system" rows="3" style="resize:vertical;font-size:.83rem" placeholder="Es: Rispondi in italiano formale. Non suggerire farmaci...">'+(localStorage.getItem('ecp_ai_system')||'')+'</textarea>'
+      +'<button onclick="owSaveSystem()" class="btn btn-primary btn-sm" style="border-radius:50px;margin-top:10px">&#128190; Salva</button>'
+      +'</div>';
   }
 }
 
@@ -7385,7 +7411,7 @@ function renderDashAICoach(){
   welcome.style.cssText='background:var(--bg2);border-radius:12px 12px 12px 4px;padding:12px 14px;max-width:85%;font-size:.875rem;line-height:1.6';
   welcome.innerHTML='Ciao <strong>'+(u.name||'atleta')+'</strong>! &#128075; Sono il tuo AI Coach.<br>Profilo: <strong>'+(p.goal||'—')+'</strong> &bull; <strong>'+(p.level||'—')+'</strong>. Come posso aiutarti?';
   msgs.appendChild(welcome);
-  (aiCoachHistory||[]).slice(1).forEach(function(m){
+  (aiCoachHistory||[]).forEach(function(m){
     var el=document.createElement('div');
     var isusr=m.role==='user';
     el.style.cssText='background:'+(isusr?'var(--accent)':'var(--bg2)')+';color:'+(isusr?'#fff':'var(--text)')+';border-radius:'+(isusr?'12px 12px 4px 12px':'12px 12px 12px 4px')+';padding:10px 14px;max-width:85%;font-size:.875rem;line-height:1.6'+(isusr?';align-self:flex-end':'');
@@ -7446,6 +7472,62 @@ function saveCoachConfig(){
   updateUser(SESSION);saveSession(SESSION);toast('Configurazione salvata','success');
 }
 function resetAICoach(){if(typeof aiCoachHistory!=='undefined')aiCoachHistory=[];renderDashAICoach();toast('Chat azzerata','success');}
+async function sendAICoach(){
+  var inp=document.getElementById('ai-coach-inp');
+  var msg=inp?inp.value.trim():'';
+  if(!msg) return;
+  if(!SESSION){ toast("Accedi per usare l'AI Coach",'error'); return; }
+  if(inp) inp.value='';
+  aiCoachHistory.push({role:'user',content:msg});
+  _renderCoachMsg({role:'user',content:msg});
+  var msgs=document.getElementById('ai-msgs');
+  var typing=document.createElement('div');
+  typing.id='coach-typing';
+  typing.style.cssText='background:var(--bg2);border-radius:12px 12px 12px 4px;padding:10px 14px;max-width:85%;font-size:.875rem;color:var(--sub);display:flex;gap:4px;align-items:center';
+  typing.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--sub);animation:dotPulse .9s ease-in-out infinite"></span>'
+    +'<span style="width:6px;height:6px;border-radius:50%;background:var(--sub);animation:dotPulse .9s ease-in-out infinite;animation-delay:.2s"></span>'
+    +'<span style="width:6px;height:6px;border-radius:50%;background:var(--sub);animation:dotPulse .9s ease-in-out infinite;animation-delay:.4s"></span>';
+  if(msgs){msgs.appendChild(typing);msgs.scrollTop=msgs.scrollHeight;}
+  var p=SESSION.profile||{},cfg=SESSION.coachConfig||{};
+  var sysOv=localStorage.getItem('ecp_ai_system')||'';
+  var PERSONAS={
+    motivatore:"Sei un coach ultra-motivatore, energico, diretto. Usa linguaggio positivo e chiamate all'azione forti.",
+    scientifico:"Sei un preparatore atletico scientifico. Cita principi fisiologici e dati precisi.",
+    amichevole:"Sei un amico personal trainer, empatico e incoraggiante. Tono caldo e accessibile.",
+    militare:"Sei un drill sergeant, duro ma giusto. Comandi chiari, nessuna scusa, massima disciplina."
+  };
+  var persona=PERSONAS[cfg.style||'motivatore']||PERSONAS.motivatore;
+  var lang=cfg.lang==='en'?'Respond only in English.':'Rispondi sempre in italiano.';
+  var sys=persona+' '+lang+' Profilo atleta: Obiettivo '+(p.goal||'fitness')+', Livello '+(p.level||'intermedio')+', Sessioni/sett: '+(p.freq||'3-4')+', Infortuni: '+((p.injuries||[]).join(', ')||'nessuno')+'. Sii conciso (max 150 parole), pratico e personalizzato.'+(cfg.custom?' '+cfg.custom:'')+(sysOv?' '+sysOv:'');
+  try{
+    var resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:getAIModel(),max_tokens:600,system:sys,messages:aiCoachHistory.slice(-12)})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    var data=await resp.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    var reply=(data.content||[]).find(function(b){return b.type==='text';});
+    var replyText=reply?reply.text:'Risposta non disponibile.';
+    var tp=document.getElementById('coach-typing'); if(tp) tp.remove();
+    aiCoachHistory.push({role:'assistant',content:replyText});
+    _renderCoachMsg({role:'assistant',content:replyText});
+    if(SESSION){SESSION.coachMessages=(SESSION.coachMessages||0)+1;updateUser(SESSION);saveSession(SESSION);}
+  }catch(err){
+    var tp=document.getElementById('coach-typing'); if(tp) tp.remove();
+    aiCoachHistory.pop();
+    _renderCoachMsg({role:'assistant',content:'Errore: '+String(err.message||err).slice(0,100)+'. Verifica API key.'});
+    console.error('sendAICoach:',err);
+  }
+}
+function _renderCoachMsg(m){
+  var msgs=document.getElementById('ai-msgs');
+  if(!msgs) return;
+  var isusr=m.role==='user';
+  var el=document.createElement('div');
+  el.style.cssText='background:'+(isusr?'var(--accent)':'var(--bg2)')+';color:'+(isusr?'#fff':'var(--text)')+';border-radius:'+(isusr?'12px 12px 4px 12px':'12px 12px 12px 4px')+';padding:10px 14px;max-width:85%;font-size:.875rem;line-height:1.6'+(isusr?';align-self:flex-end':'');
+  el.innerHTML=m.content.replace(/\\n/g,'<br>').replace(/[*][*](.+?)[*][*]/g,'<strong>$1</strong>');
+  msgs.appendChild(el);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
 
 function renderTrainerDash(){
   TR_SESSION=loadTrainerSession();
@@ -8667,7 +8749,7 @@ function wodTimerSkip(){ if(wodInterval) clearInterval(wodInterval); wodCfg.runn
 // ─── STRIPE CONFIGURATION ────────────────────────────────────────
 // Replace with your real Stripe Publishable Key from dashboard.stripe.com
 let ANTHROPIC_KEY = localStorage.getItem('ecp_anthropic_key') || '';
-function getAIModel(){ return localStorage.getItem('ecp_ai_model')||'claude-sonnet-4-5'; }
+function getAIModel(){ return localStorage.getItem('ecp_ai_model')||'claude-haiku-4-5-20251001'; }
 
 const STRIPE_PUBLIC_KEY = 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY';
 // Backend URL — replace when you deploy the backend
@@ -12890,6 +12972,21 @@ function owRevokeKey(){
   toast('Chiave API rimossa','');
   showOwnerSection('ai');
 }
+function owSetModel(model){
+  localStorage.setItem('ecp_ai_model', model);
+  toast('Modello: '+model,'success');
+  showOwnerSection('ai');
+}
+function owToggleFeat(key){
+  var current=localStorage.getItem(key);
+  localStorage.setItem(key, current==='0'?'1':'0');
+  showOwnerSection('ai');
+}
+function owSaveSystem(){
+  var val=(document.getElementById('ow-ai-system')||{}).value||'';
+  localStorage.setItem('ecp_ai_system', val);
+  toast('Istruzioni sistema salvate!','success');
+}
 </script>
 
 <!-- ═══ LIBERATORIA ═══ -->
@@ -13032,4 +13129,4 @@ function owRevokeKey(){
     <div style="flex:1;min-width:260px">
       <p style="font-size:.85rem;color:var(--sub);margin:0">🍪 Utilizziamo cookie tecnici necessari al funzionamento del sito.
       <a onclick="document.getElementById('modal-cookie').classList.add('open')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Cookie Policy</a> ·
-      <a onclick="document.getElementById('modal-privacy').classList.add('open')" style="color:var(--accent);cursor:pointer;text-de
+      <a onclick="document.getElementById('modal-privacy').classList.add('open')" style="color:var(--accent);cursor:pointer;text-d  el.innerHTML=m.content.replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');e
